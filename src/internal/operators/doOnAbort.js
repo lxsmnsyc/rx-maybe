@@ -4,7 +4,9 @@ import Maybe from '../../maybe';
  * @ignore
  */
 function subscribeActual(observer) {
-  const { onSubscribe, onComplete, onSuccess, onError } = observer;
+  const {
+    onSubscribe, onComplete, onSuccess, onError,
+  } = observer;
 
   const { source, callable } = this;
 

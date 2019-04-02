@@ -31,9 +31,7 @@ function subscribeActual(observer) {
 
   this.source.subscribeWith({
     onSubscribe(ac) {
-      signal.addEventListener('abort', () => {
-        ac.abort();
-      });
+      signal.addEventListener('abort', () => ac.abort());
     },
     onSuccess(x) {
       timeout = setTimeout(() => {

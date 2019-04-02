@@ -6,7 +6,9 @@ import { cleanObserver } from '../utils';
  * @ignore
  */
 function subscribeActual(observer) {
-  const { onSubscribe, onComplete, onSuccess, onError } = cleanObserver(observer);
+  const {
+    onSubscribe, onComplete, onSuccess, onError,
+  } = cleanObserver(observer);
 
   const controller = new AbortController();
 

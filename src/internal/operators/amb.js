@@ -32,11 +32,7 @@ function subscribeActual(observer) {
     if (maybe instanceof Maybe) {
       maybe.subscribeWith({
         onSubscribe(ac) {
-          if (signal.aborted) {
-            ac.abort();
-          } else {
-            signal.addEventListener('abort', () => ac.abort());
-          }
+          signal.addEventListener('abort', () => ac.abort());
         },
         onComplete() {
           onComplete();

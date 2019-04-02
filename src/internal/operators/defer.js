@@ -21,7 +21,7 @@ function subscribeActual(observer) {
     err = e;
   }
 
-  if (typeof err !== 'undefined') {
+  if (err != null) {
     immediateError(observer, err);
   } else {
     result.subscribeWith({

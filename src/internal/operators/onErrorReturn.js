@@ -17,15 +17,15 @@ function subscribeActual(observer) {
 
       try {
         result = item(x);
-
-        if (result == null) {
-          throw new Error(new Error('Maybe.onErrorReturn: returned a null value.'));
-        }
       } catch (e) {
         onError([x, e]);
         return;
       }
-      onSuccess(result);
+      if (result == null) {
+        onComplete();
+      } else {
+        onSuccess(result);
+      }
     },
   });
 }

@@ -18,7 +18,7 @@ function subscribeActual(observer) {
       try {
         result = item(x);
 
-        if (typeof result === 'undefined') {
+        if (result == null) {
           throw new Error(new Error('Maybe.onErrorReturn: returned an undefined value.'));
         }
       } catch (e) {

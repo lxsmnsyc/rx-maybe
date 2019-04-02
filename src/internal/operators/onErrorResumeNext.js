@@ -37,7 +37,7 @@ function subscribeActual(observer) {
       if (typeof resumeIfError === 'function') {
         try {
           result = resumeIfError(x);
-          if (typeof result === 'undefined') {
+          if (result == null) {
             throw new Error('Maybe.onErrorResumeNext: returned an non-Maybe.');
           }
         } catch (e) {

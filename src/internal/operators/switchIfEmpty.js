@@ -11,7 +11,7 @@ function subscribeActual(observer) {
 
   onSubscribe(controller);
 
-  const { signal } = controller; 
+  const { signal } = controller;
 
   if (signal.aborted) {
     return;

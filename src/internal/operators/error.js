@@ -10,7 +10,7 @@ function subscribeActual(observer) {
   try {
     err = this.supplier();
 
-    if (typeof err === 'undefined') {
+    if (err == null) {
       throw new Error('Maybe.error: Error supplier returned an undefined value.');
     }
   } catch (e) {

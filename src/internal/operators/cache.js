@@ -26,6 +26,10 @@ function subscribeActual(observer) {
 
     onSubscribe(controller);
 
+    if (controller.signal.aborted) {
+      return;
+    }
+
     if (!subscribed) {
       source.subscribeWith({
         onSubscribe() {

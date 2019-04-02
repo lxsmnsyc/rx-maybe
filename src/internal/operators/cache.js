@@ -72,9 +72,9 @@ function subscribeActual(observer) {
     onSubscribe(controller);
 
     const { value, error } = this;
-    if (typeof value !== 'undefined') {
+    if (value != null) {
       onSuccess(value);
-    } else if (typeof error !== 'undefined') {
+    } else if (error != null) {
       onError(error);
     } else {
       onComplete();

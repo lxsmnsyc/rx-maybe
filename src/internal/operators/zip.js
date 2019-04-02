@@ -61,7 +61,7 @@ function subscribeActual(observer) {
             let r;
             try {
               r = zipper(result);
-              if (typeof r === 'undefined') {
+              if (r == null) {
                 throw new Error('Maybe.zip: zipper function returned an undefined value.');
               }
             } catch (e) {
@@ -78,7 +78,7 @@ function subscribeActual(observer) {
           controller.abort();
         },
       });
-    } else if (typeof maybe !== 'undefined') {
+    } else if (maybe != null) {
       result[i] = maybe;
       pending -= 1;
     } else {

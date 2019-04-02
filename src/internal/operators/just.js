@@ -12,7 +12,7 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (value) => {
-  if (typeof value === 'undefined') {
+  if (value == null) {
     return error(new Error('Maybe.just: received an undefined value.'));
   }
   const maybe = new Maybe();

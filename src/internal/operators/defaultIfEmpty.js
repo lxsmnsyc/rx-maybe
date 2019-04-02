@@ -4,7 +4,7 @@ import Maybe from '../../maybe';
 
 function subscribeActual(observer) {
   const {
-    onSubscribe, onSuccess, onComplete, onError,
+    onSubscribe, onSuccess, onError,
   } = cleanObserver(observer);
 
   const controller = new AbortController();
@@ -17,7 +17,7 @@ function subscribeActual(observer) {
     return;
   }
 
-  const { source, other } = this;
+  const { source, value } = this;
 
   source.subscribeWith({
     onSubscribe(ac) {
@@ -28,23 +28,8 @@ function subscribeActual(observer) {
       controller.abort();
     },
     onComplete() {
-      other.subscribeWith({
-        onSubscribe(ac) {
-          signal.addEventListener('abort', () => ac.abort());
-        },
-        onSuccess(x) {
-          onSuccess(x);
-          controller.abort();
-        },
-        onComplete() {
-          onComplete();
-          controller.abort();
-        },
-        onError(x) {
-          onError(x);
-          controller.abort();
-        },
-      });
+      onSuccess(value);
+      controller.abort();
     },
     onError(x) {
       onError(x);

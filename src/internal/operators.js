@@ -7,6 +7,7 @@ export { default as ambWith } from './operators/ambWith';
 export { default as cache } from './operators/cache';
 export { default as create } from './operators/create';
 export { default as compose } from './operators/compose';
+export { default as defaultIfEmpty } from './operators/defaultIfEmpty';
 export { default as defer } from './operators/defer';
 export { default as delay } from './operators/delay';
 export { default as delaySubscription } from './operators/delaySubscription';

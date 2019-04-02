@@ -50,7 +50,7 @@ function subscribeActual(observer) {
           result = zipper(SA, SB);
 
           if (result == null) {
-            throw new Error('Maybe.zipWith: zipper function returned an undefined value.');
+            throw new Error('Maybe.zipWith: zipper function returned a null value.');
           }
         } catch (e) {
           onError(e);
@@ -92,7 +92,7 @@ function subscribeActual(observer) {
           result = zipper(SA, SB);
 
           if (result == null) {
-            throw new Error('Maybe.zipWith: zipper function returned an undefined value.');
+            throw new Error('Maybe.zipWith: zipper function returned a null value.');
           }
         } catch (e) {
           onError(e);

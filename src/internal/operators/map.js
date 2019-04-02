@@ -23,7 +23,7 @@ function subscribeActual(observer) {
       try {
         result = mapper(x);
         if (result == null) {
-          throw new Error('Maybe.map: mapper function returned an undefined value.');
+          throw new Error('Maybe.map: mapper function returned a null value.');
         }
       } catch (e) {
         onError(e);

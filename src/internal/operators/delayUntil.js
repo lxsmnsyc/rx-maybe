@@ -1,5 +1,6 @@
 import AbortController from 'abort-controller';
 import Maybe from '../../maybe';
+import { cleanObserver } from '../utils';
 
 /**
  * @ignore
@@ -7,7 +8,7 @@ import Maybe from '../../maybe';
 function subscribeActual(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
-  } = observer;
+  } = cleanObserver(observer);
 
   const { source, other } = this;
 

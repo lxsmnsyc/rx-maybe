@@ -1,7 +1,7 @@
 import AbortController from 'abort-controller';
 import Maybe from '../../maybe';
 import {
-  isPromise, onSuccessHandler, onErrorHandler, onCompleteHandler,
+  isPromise, onSuccessHandler, onErrorHandler, onCompleteHandler, cleanObserver,
 } from '../utils';
 import error from './error';
 /**
@@ -10,7 +10,7 @@ import error from './error';
 function subscribeActual(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
-  } = observer;
+  } = cleanObserver(observer);
 
   const controller = new AbortController();
 

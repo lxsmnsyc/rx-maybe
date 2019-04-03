@@ -239,26 +239,76 @@ export default class Maybe {
     return doAfterTerminate(this, action);
   }
 
+  /**
+   * Calls the specified action after this Maybe signals onSuccess,
+   * onError or onComplete or gets aborted by the downstream.
+   *
+   * In case of a race between a terminal event and a abort call,
+   * the provided onFinally action is executed once per subscription.
+   *
+   * @param {!function} action
+   * the action called when this Maybe terminates or gets aborted
+   * @returns {Maybe}
+   */
   doFinally(action) {
     return doFinally(this, action);
   }
 
+  /**
+   * Calls the shared action if an Observer subscribed to the current
+   * Maybe aborts the common AbortController it received via onSubscribe.
+   *
+   * @param {!function} action
+   * the action called when the subscription is aborted
+   * @returns {Maybe}
+   */
   doOnAbort(action) {
     return doOnAbort(this, action);
   }
 
+  /**
+   * Modifies the source Maybe so that it invokes an action when it calls
+   * onComplete.
+   * @param {!function} action
+   * the action to invoke when the source Maybe calls onComplete.
+   * @returns {Maybe}
+   * the new Maybe with the side-effecting behavior applied.
+   */
   doOnComplete(action) {
     return doOnComplete(this, action);
   }
 
+  /**
+   * Calls the shared consumer with the error sent via onError for each
+   * Observer that subscribes to the current Maybe.
+   * @param {!function(e: Error)} consumer
+   * the consumer called with the success value of onError
+   * @returns {Maybe}
+   */
   doOnError(consumer) {
     return doOnError(this, consumer);
   }
 
+  /**
+   * Calls the given onEvent callback with the (success value, null) for
+   * an onSuccess, (null, throwable) for an onError or (null, null) for
+   * an onComplete signal from this Maybe before delivering said signal to the downstream.
+   * @param {!function(success: any, e: Error)} biconsumer
+   * the callback to call with the terminal event tuple
+   * @returns {Maybe}
+   */
   doOnEvent(biconsumer) {
     return doOnEvent(this, biconsumer);
   }
 
+  /**
+   * Calls the shared consumer with the AbortController sent through
+   * the onSubscribe for each Observer that subscribes to the current Maybe.
+   *
+   * @param {!function(ac: AbortController)} consumer
+   * the consumer called with the AbortController sent via onSubscribe
+   * @returns {Maybe}
+   */
   doOnSubscribe(consumer) {
     return doOnSubscribe(this, consumer);
   }

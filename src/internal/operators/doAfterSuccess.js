@@ -1,12 +1,13 @@
 import Maybe from '../../maybe';
+import { cleanObserver } from '../utils';
 
 /**
  * @ignore
  */
 function subscribeActual(observer) {
   const {
-    onSubscribe, onSuccess, onComplete, onError,
-  } = observer;
+    onSuccess, onComplete, onError, onSubscribe,
+  } = cleanObserver(observer);
 
   const { source, callable } = this;
 

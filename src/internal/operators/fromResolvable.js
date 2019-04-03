@@ -1,6 +1,6 @@
 import AbortController from 'abort-controller';
 import {
- onErrorHandler, onSuccessHandler, onCompleteHandler, cleanObserver 
+  onErrorHandler, onSuccessHandler, onCompleteHandler, cleanObserver,
 } from '../utils';
 import Maybe from '../../maybe';
 import error from './error';

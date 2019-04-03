@@ -313,14 +313,36 @@ export default class Maybe {
     return doOnSubscribe(this, consumer);
   }
 
+  /**
+   * Calls the shared consumer with the success value sent via onSuccess
+   * for each Observer that subscribes to the current Maybe.
+   *
+   * @param {!function(success: any)} consumer
+   * the consumer called with the success value of onSuccess
+   * @returns {Maybe}
+   */
   doOnSuccess(consumer) {
     return doOnSuccess(this, consumer);
   }
 
+  /**
+   * Returns a Maybe instance that calls the given onTerminate callback
+   * just before this Maybe completes normally or with an exception.
+   *
+   * This differs from doAfterTerminate in that this happens before
+   * the onComplete or onError notification.
+   * @param {!function} action
+   * the action to invoke when the consumer calls onComplete or onError
+   * @returns {Maybe}
+   */
   doOnTerminate(action) {
     return doOnTerminate(this, action);
   }
 
+  /**
+   * Returns a (singleton) Maybe instance that calls onComplete immediately.
+   * @returns {Maybe}
+   */
   static empty() {
     return empty();
   }

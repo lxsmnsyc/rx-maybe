@@ -44,9 +44,8 @@ export default (source, mapper) => {
     ms = defaultMapper;
   }
 
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.source = source;
   maybe.mapper = ms;
-  maybe.subscribeActual = subscribeActual.bind(maybe);
   return maybe;
 };

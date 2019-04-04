@@ -1,6 +1,6 @@
 import AbortController from 'abort-controller';
 import {
-  onErrorHandler, onSuccessHandler, cleanObserver, onCompleteHandler,
+  onErrorHandler, onSuccessHandler, cleanObserver, onCompleteHandler, isFunction,
 } from '../utils';
 import Maybe from '../../maybe';
 import error from './error';
@@ -35,7 +35,7 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (subscriber) => {
-  if (typeof subscriber !== 'function') {
+  if (!isFunction(subscriber)) {
     return error(new Error('Maybe.create: There are no subscribers.'));
   }
   const maybe = new Maybe(subscribeActual);

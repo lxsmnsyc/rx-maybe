@@ -60,9 +60,8 @@ export default (source, amount) => {
   if (typeof amount !== 'number') {
     return source;
   }
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.source = source;
   maybe.amount = amount;
-  maybe.subscribeActual = subscribeActual.bind(maybe);
   return maybe;
 };

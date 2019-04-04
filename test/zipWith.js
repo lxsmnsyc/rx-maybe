@@ -89,10 +89,7 @@ describe('#zipWith', () => {
       () => done(),
     );
   });
-  /**
-   *
-   */
-  it('should signal error if source throws error.', (done) => {
+  it('should signal complete if source signals complete.', (done) => {
     const source = Maybe.empty().zipWith(Maybe.just('World'));
     source.subscribe(
       () => done(false),
@@ -103,8 +100,8 @@ describe('#zipWith', () => {
   /**
    *
    */
-  it('should signal error if other Maybe throws error.', (done) => {
-    const source = Maybe.empty().zipWith(Maybe.error('World'));
+  it('should signal complete if other Maybe signals complete.', (done) => {
+    const source = Maybe.just('World').zipWith(Maybe.empty());
     source.subscribe(
       () => done(false),
       () => done(),

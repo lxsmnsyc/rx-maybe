@@ -1,5 +1,5 @@
 import Maybe from '../../maybe';
-import { cleanObserver } from '../utils';
+import { cleanObserver, isFunction } from '../utils';
 
 function subscribeActual(observer) {
   const {
@@ -32,7 +32,7 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (source, item) => {
-  if (typeof item !== 'function') {
+  if (!isFunction(item)) {
     return source;
   }
 

@@ -67,8 +67,7 @@ export default (source) => {
     return error(new Error('Maybe.merge: source is not a Maybe.'));
   }
 
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.source = source;
-  maybe.subscribeActual = subscribeActual.bind(maybe);
   return maybe;
 };

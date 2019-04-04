@@ -1,4 +1,4 @@
-import { toCallable, immediateError } from '../utils';
+import { toCallable, immediateError, isFunction } from '../utils';
 import Maybe from '../../maybe';
 
 /**
@@ -23,11 +23,12 @@ function subscribeActual(observer) {
  */
 export default (value) => {
   let report = value;
-  if (!(value instanceof Error)) {
+
+  if (!(value instanceof Error || isFunction(value))) {
     report = new Error('Maybe.error received a non-Error value.');
   }
 
-  if (typeof value !== 'function') {
+  if (!isFunction(value)) {
     report = toCallable(report);
   }
   const maybe = new Maybe(subscribeActual);

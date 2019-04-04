@@ -76,9 +76,8 @@ export default (source, resumeIfError) => {
     return source;
   }
 
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.source = source;
   maybe.resumeIfError = resumeIfError;
-  maybe.subscribeActual = subscribeActual.bind(maybe);
   return maybe;
 };

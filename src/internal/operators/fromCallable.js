@@ -53,8 +53,7 @@ export default (callable) => {
   if (typeof callable !== 'function') {
     return error(new Error('Maybe.fromCallable: callable received is not a function.'));
   }
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.callable = callable;
-  maybe.subscribeActual = subscribeActual.bind(maybe);
   return maybe;
 };

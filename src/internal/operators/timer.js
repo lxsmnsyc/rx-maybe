@@ -33,8 +33,7 @@ export default (amount) => {
   if (typeof amount !== 'number') {
     return error(new Error('Maybe.timer: "amount" is not a number.'));
   }
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.amount = amount;
-  maybe.subscribeActual = subscribeActual.bind(maybe);
   return maybe;
 };

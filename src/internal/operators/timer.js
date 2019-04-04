@@ -1,6 +1,6 @@
 import AbortController from 'abort-controller';
 import Maybe from '../../maybe';
-import { cleanObserver } from '../utils';
+import { cleanObserver, isNumber } from '../utils';
 import { error } from '../operators';
 
 /**
@@ -30,7 +30,7 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (amount) => {
-  if (typeof amount !== 'number') {
+  if (!isNumber(amount)) {
     return error(new Error('Maybe.timer: "amount" is not a number.'));
   }
   const maybe = new Maybe(subscribeActual);

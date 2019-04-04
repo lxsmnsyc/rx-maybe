@@ -30,8 +30,7 @@ export default (value) => {
   if (typeof value !== 'function') {
     report = toCallable(report);
   }
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.supplier = report;
-  maybe.subscribeActual = subscribeActual.bind(maybe);
   return maybe;
 };

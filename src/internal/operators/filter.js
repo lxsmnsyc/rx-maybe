@@ -62,9 +62,8 @@ export default (source, predicate) => {
     return source;
   }
 
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.source = source;
   maybe.predicate = predicate;
-  maybe.subscribeActual = subscribeActual.bind(maybe);
   return maybe;
 };

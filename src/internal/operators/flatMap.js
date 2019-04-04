@@ -1,6 +1,6 @@
 import AbortController from 'abort-controller';
 import Maybe from '../../maybe';
-import { cleanObserver } from '../utils';
+import { cleanObserver, isFunction } from '../utils';
 
 /**
  * @ignore
@@ -71,7 +71,7 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (source, mapper) => {
-  if (typeof mapper !== 'function') {
+  if (!isFunction(mapper)) {
     return source;
   }
 

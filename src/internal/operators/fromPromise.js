@@ -41,7 +41,7 @@ export default (promise) => {
   if (!isPromise(promise)) {
     return error(new Error('Maybe.fromPromise: expects a Promise-like value.'));
   }
-  const single = new Maybe();
+  const single = new Maybe(subscribeActual);
   single.promise = promise;
   single.subscribeActual = subscribeActual.bind(single);
   return single;

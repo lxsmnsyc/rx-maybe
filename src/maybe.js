@@ -439,8 +439,8 @@ export default class Maybe {
    * similar to a Promise construct.
    * @returns {Maybe}
    */
-  static fromResolvable(resolvable) {
-    return fromResolvable(resolvable);
+  static fromResolvable(fulfillable) {
+    return fromResolvable(fulfillable);
   }
 
   /**
@@ -553,7 +553,7 @@ export default class Maybe {
    * Instructs a Maybe to pass control to another Maybe rather than
    * invoking onError if it encounters an error.
    *
-   * @param {!(function(e: Error):Maybe)|Maybe} other
+   * @param {!function(e: Error):Maybe|Maybe} other
    * - the next Maybe that will take over if the source Maybe encounters an error
    * - a function that returns a Maybe that will take over if the source Maybe encounters an error
    * @returns {Maybe}

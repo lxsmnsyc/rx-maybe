@@ -5,17 +5,12 @@ import Maybe from '../src/maybe';
 /**
  *
  */
-describe('Maybe', () => {
+describe('#catch', () => {
   /**
    *
    */
-  describe('#catch', () => {
-    /**
-     *
-     */
-    it('should create a Promise', () => {
-      const maybe = Maybe.just('Hello').catch(x => x);
-      assert(maybe instanceof Promise);
-    });
+  it('should create a Promise', () => {
+    const maybe = Maybe.just('Hello').catch(x => x);
+    assert(maybe instanceof Promise);
   });
 });

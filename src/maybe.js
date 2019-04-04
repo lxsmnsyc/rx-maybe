@@ -57,6 +57,13 @@ import {
 
 export default class Maybe {
   /**
+   * @ignore
+   */
+  constructor(subscribeActual) {
+    this.subscribeActual = subscribeActual;
+  }
+
+  /**
    * Runs multiple MaybeSources and signals the events
    * of the first one that signals (aborting the rest).
    *
@@ -71,10 +78,10 @@ export default class Maybe {
   }
 
   /**
-   * Mirrors the MaybeSource (current or provided) that
+   * Mirrors the Maybe (current or provided) that
    * first signals an event.
    * @param {!Maybe} other
-   * a MaybeSource competing to react first. A subscription
+   * a Maybe competing to react first. A subscription
    * to this provided source will occur after subscribing
    * to the current source.
    * @returns {Maybe}
@@ -347,90 +354,329 @@ export default class Maybe {
     return empty();
   }
 
+  /**
+   * Returns a Maybe that invokes a subscriber's onError method when
+   * the subscriber subscribes to it.
+   * @param {!(function():Error|Error)} err
+   * - the callable that is called for each individual
+   * Observer and returns or throws a value to be emitted.
+   * - the particular value to pass to onError
+   * @returns {Maybe}
+   * a Maybe that invokes the subscriber's onError method when the
+   * subscriber subscribes to it
+   */
   static error(err) {
     return error(err);
   }
 
+  /**
+   * Filters the success item of the Maybe via a predicate function
+   * and emitting it if the predicate returns true, completing otherwise.
+   * @param {!function(x: any):boolean} predicate
+   * a function that evaluates the item emitted by the source Maybe,
+   * returning true if it passes the filter
+   * @returns {Maybe}
+   * a Maybe that emit the item emitted by the source Maybe that the filter
+   * evaluates as true
+   */
   filter(predicate) {
     return filter(this, predicate);
   }
 
+  /**
+   * Returns a Maybe that is based on applying a specified function to the
+   * item emitted by the source Maybe, where that function returns a Maybe.
+   * @param {!function(x: any):Maybe} mapper
+   * a function that, when applied to the item emitted by the source Maybe,
+   * returns a Maybe.
+   * @returns {Maybe}
+   * the Maybe returned from mapper when applied to the item emitted by the
+   * source Maybe
+   */
   flatMap(mapper) {
     return flatMap(this, mapper);
   }
 
+  /**
+   * Returns a Maybe that invokes the given callable for each individual
+   * Observer that subscribes and emits the resulting non-null item via
+   * onSuccess while considering a null result from the callable as
+   * indication for valueless completion via onComplete.
+   *
+   * This operator allows you to defer the execution of the given Callable
+   * until a Observer subscribes to the returned Maybe. In other terms,
+   * this source operator evaluates the given callable "lazily"
+   *
+   * If the result is a Promise-like instance, the
+   * Observer is then subscribed to the Promise through
+   * the fromPromise operator.
+   *
+   * @param {!function():any} callable
+   * a callable instance whose execution should be deferred and performed
+   * for each individual Observer that subscribes to the returned Maybe.
+   * @returns {Maybe}
+   */
   static fromCallable(callable) {
     return fromCallable(callable);
   }
 
+  /**
+   * Converts a Promise-like instance into a Maybe.
+   *
+   * @param {!(Promise|Thennable|PromiseLike)} promise
+   * The promise to be converted into a Maybe.
+   * @returns {Maybe}
+   */
   static fromPromise(promise) {
     return fromPromise(promise);
   }
 
+  /**
+   * Provides a Promise-like interface for emitting signals.
+   *
+   * @param {!function(resolve: function, reject:function))} fulfillable
+   * A function that accepts two parameters: resolve and reject,
+   * similar to a Promise construct.
+   * @returns {Maybe}
+   */
   static fromResolvable(resolvable) {
     return fromResolvable(resolvable);
   }
 
+  /**
+   * Returns a Maybe that emits a specified item.
+   * @param {!any} value
+   * the item to emit
+   * @returns {Maybe}
+   * a Maybe that emits item
+   */
   static just(value) {
     return just(value);
   }
 
+  /**
+   * This method requires advanced knowledge about building operators,
+   * please consider other standard composition methods first;
+   *
+   * Returns a Maybe which, when subscribed to, invokes the operator
+   * method of the provided Observer for each individual downstream Maybe
+   * and allows the insertion of a custom operator by accessing the
+   * downstream's Observer during this subscription phase and providing a new
+   * Observer, containing the custom operator's intended business logic,
+   * that will be used in the subscription process going further upstream.
+   *
+   * Generally, such a new Observer will wrap the downstream's Observer
+   * and forwards the onSuccess, onError and onComplete events from the
+   * upstream directly or according to the emission pattern the custom
+   * operator's business logic requires. In addition, such operator can
+   * intercept the flow control calls of abort and signal.aborted that
+   * would have traveled upstream and perform additional actions
+   * depending on the same business logic requirements.
+   *
+   * Note that implementing custom operators via this lift()
+   * method adds slightly more overhead by requiring an additional
+   * allocation and indirection per assembled flows. Instead,
+   * using compose() method and  creating a transformer function
+   * with it is recommended.
+   *
+   * @param {!function(observer: Observer):Observer} operator
+   * the function that receives the downstream's Observer and should
+   * return a Observer with custom behavior to be used as the consumer
+   * for the current Maybe.
+   * @returns {Maybe}
+   */
   lift(operator) {
     return lift(this, operator);
   }
 
+  /**
+   * Returns a Maybe that applies a specified function to the item
+   * emitted by the source Maybe and emits the result of this function
+   * application.
+   *
+   * @param {!function} mapper
+   * a function to apply to the item emitted by the Maybe
+   * @returns {Maybe}
+   * a Maybe that emits the item from the source Maybe, transformed by
+   * the specified function
+   */
   map(mapper) {
     return map(this, mapper);
   }
 
+
+  /**
+   * Flattens a Maybe that emits a Maybe into a single Maybe that emits
+   * the item emitted by the nested Maybe, without any transformation.
+   *
+   * @param {!Maybe} source
+   * a Maybe that emits a Maybe
+   * @returns {Maybe}
+   * a Maybe that emits the item that is the result of flattening the
+   * Maybe emitted by source
+   */
   static merge(source) {
     return merge(source);
   }
 
+  /**
+   * Returns a Maybe that never sends any items or notifications to a
+   * Observer.
+   *
+   * @returns {Maybe}
+   * a Maybe that never emits any items or sends any notifications to a
+   * Observer
+   */
   static never() {
     return never();
   }
 
+  /**
+   * Returns a Maybe instance that if this Maybe emits an
+   * error and the predicate returns true, it will emit an onComplete
+   * and swallow the throwable.
+   *
+   * If no predicate is provided, returns a Maybe instance that
+   * if this Maybe emits an error, it will emit an onComplete
+   * and swallow the error
+   *
+   * @param {function(e: Error):boolean} predicate
+   * the predicate to call when an Error is emitted which should return true
+   * if the Error should be swallowed and replaced with an onComplete.
+   * @returns {Maybe}
+   */
   onErrorComplete(predicate) {
     return onErrorComplete(this, predicate);
   }
 
+  /**
+   * Instructs a Maybe to pass control to another Maybe rather than
+   * invoking onError if it encounters an error.
+   *
+   * @param {!(function(e: Error):Maybe)|Maybe} other
+   * - the next Maybe that will take over if the source Maybe encounters an error
+   * - a function that returns a Maybe that will take over if the source Maybe encounters an error
+   * @returns {Maybe}
+   */
   onErrorResumeNext(other) {
     return onErrorResumeNext(this, other);
   }
 
+  /**
+   * Instructs a Maybe to emit an item (returned by a specified function)
+   * rather than invoking onError if it encounters an error.
+   * @param {!function(e: Error):Maybe} supplier
+   * a function that returns a single value that will be emitted as success value
+   * the current Maybe signals an onError event
+   * @returns {Maybe}
+   */
   onErrorReturn(supplier) {
     return onErrorReturn(this, supplier);
   }
 
+  /**
+   * Instructs a Maybe to emit an item (returned by a specified function)
+   * rather than invoking onError if it encounters an error.
+   * @param {any} value
+   * the value that is emitted as onSuccess in case this Maybe signals an onError
+   * @returns {Maybe}
+   */
   onErrorReturnItem(value) {
     return onErrorReturnItem(this, value);
   }
 
+  /**
+   * Returns a Maybe that mirrors the source Maybe, resubscribing to it if it calls
+   * onError and the predicate returns true for that specific exception and retry count.
+   * @param {!function(retries: number, err: Error):boolean} bipredicate
+   * the predicate that determines if a resubscription may happen in case of a
+   * specific exception and retry count.
+   * @returns {Maybe}
+   */
   retry(bipredicate) {
     return retry(this, bipredicate);
   }
 
+  /**
+   * Returns a Maybe that emits the items emitted by the source Maybe or the items
+   * of an alternate Maybe if the current Maybe is empty.
+   * @param {Maybe} other
+   * the alternate Maybe to subscribe to if the main does not emit any items
+   * @returns {Maybe}
+   * a Maybe that emits the items emitted by the source Maybe
+   * or the items of an alternate Maybe if the source Maybe is empty.
+   */
   switchIfEmpty(other) {
     return switchIfEmpty(this, other);
   }
 
+  /**
+   * Returns a Maybe that emits the items emitted by the source Maybe until
+   * a second Maybe emits an item.
+   * @param {Maybe} other
+   * the Maybe whose first emitted item will cause takeUntil to stop
+   * emitting items from the source Maybe
+   * @returns {Maybe}
+   * a Maybe that emits the items emitted by the source Maybe until
+   * such time as other emits its first item
+   */
   takeUntil(other) {
     return takeUntil(this, other);
   }
 
+  /**
+   * Returns a Maybe that mirrors the source Maybe but applies a
+   * timeout policy for each emitted item. If the next item isn't
+   * emitted within the specified timeout duration starting from its
+   * predecessor, the resulting Maybe terminates and notifies Observer
+   * of an Error with TimeoutException.
+   *
+   * @param {!number} amount
+   * Amount of time in milliseconds
+   * @returns {Maybe}
+   */
   timeout(amount) {
     return timeout(this, amount);
   }
 
+  /**
+   * Returns a Maybe that emits 0L after a specified delay.
+   * @param {!number} amount
+   * Amount of time in milliseconds
+   * @returns {Maybe}
+   */
   static timer(amount) {
-    return timer(this, amount);
+    return timer(amount);
   }
 
+  /**
+   * Returns a Maybe that emits the results of a specified combiner function
+   * applied to combinations of items emitted, in sequence, by an Iterable of other
+   * Maybes.
+   * @param {!Iterable} sources
+   * an Iterable of source Maybe
+   * @param {?function(results: Array):any} zipper
+   * a function that, when applied to an item emitted by each of the source Maybe,
+   * results in an item that will be emitted by the resulting Maybe
+   * @returns {Maybe}
+   */
   static zip(sources, zipper) {
     return zip(sources, zipper);
   }
 
+  /**
+   * Waits until this and the other Maybe signal a success value then applies the
+   * given function to those values and emits the function's resulting value to downstream.
+   *
+   * If either this or the other Maybe is empty or signals an error,
+   * the resulting Maybe will terminate immediately and abort the other source.
+   *
+   * @param {Maybe} other
+   * the other Maybe
+   * @param {function(a: any, b: any):any} zipper
+   * a function that combines the pairs of items from the two Maybe to
+   * generate the items to be emitted by the resulting Maybe
+   */
   zipWith(other, zipper) {
     return zipWith(this, other, zipper);
   }
@@ -454,7 +700,7 @@ export default class Maybe {
    */
   subscribeWith(observer) {
     if (isObserver(observer)) {
-      this.subscribeActual(observer);
+      this.subscribeActual.call(this, observer);
     }
   }
 
@@ -482,7 +728,7 @@ export default class Maybe {
   subscribe(onSuccess, onComplete, onError) {
     const controller = new AbortController();
     let once = false;
-    this.subscribeActual({
+    this.subscribeWith({
       onSubscribe(ac) {
         ac.signal.addEventListener('abort', () => {
           if (!once) {
@@ -501,6 +747,7 @@ export default class Maybe {
           }
         });
       },
+      onComplete,
       onSuccess,
       onError,
     });

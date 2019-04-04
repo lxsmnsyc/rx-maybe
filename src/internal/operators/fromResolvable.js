@@ -1,6 +1,6 @@
 import AbortController from 'abort-controller';
 import {
-  onErrorHandler, onSuccessHandler, onCompleteHandler, cleanObserver,
+  onErrorHandler, onSuccessHandler, onCompleteHandler, cleanObserver, isFunction,
 } from '../utils';
 import Maybe from '../../maybe';
 import error from './error';
@@ -33,11 +33,10 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (subscriber) => {
-  if (typeof subscriber !== 'function') {
+  if (!isFunction(subscriber)) {
     return error(new Error('Maybe.fromResolvable: expects a function.'));
   }
-  const single = new Maybe(subscribeActual);
-  single.subscriber = subscriber;
-  single.subscribeActual = subscribeActual.bind(single);
-  return single;
+  const maybe = new Maybe(subscribeActual);
+  maybe.subscriber = subscriber;
+  return maybe;
 };

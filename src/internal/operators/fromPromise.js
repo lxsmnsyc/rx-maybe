@@ -1,7 +1,7 @@
 import AbortController from 'abort-controller';
 import Maybe from '../../maybe';
 import {
-  isPromise, onSuccessHandler, onErrorHandler, onCompleteHandler, cleanObserver,
+  isPromise, cleanObserver,
 } from '../utils';
 import error from './error';
 /**
@@ -20,18 +20,9 @@ function subscribeActual(observer) {
     return;
   }
 
-  this.controller = controller;
-  this.onComplete = onComplete;
-  this.onSuccess = onSuccess;
-  this.onError = onError;
-
-  const resolveNone = onCompleteHandler.bind(this);
-  const resolve = onSuccessHandler.bind(this);
-  const reject = onErrorHandler.bind(this);
-
   this.promise.then(
-    x => (x == null ? resolveNone() : resolve(x)),
-    reject,
+    x => (x == null ? onComplete() : onSuccess(x)),
+    onError,
   );
 }
 /**
@@ -41,8 +32,7 @@ export default (promise) => {
   if (!isPromise(promise)) {
     return error(new Error('Maybe.fromPromise: expects a Promise-like value.'));
   }
-  const single = new Maybe(subscribeActual);
-  single.promise = promise;
-  single.subscribeActual = subscribeActual.bind(single);
-  return single;
+  const maybe = new Maybe(subscribeActual);
+  maybe.promise = promise;
+  return maybe;
 };

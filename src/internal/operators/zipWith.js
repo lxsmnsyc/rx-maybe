@@ -1,6 +1,6 @@
 import AbortController from 'abort-controller';
 import Maybe from '../../maybe';
-import { cleanObserver } from '../utils';
+import { cleanObserver, isFunction } from '../utils';
 
 /**
  * @ignore
@@ -117,7 +117,7 @@ export default (source, other, zipper) => {
     return source;
   }
   let fn = zipper;
-  if (typeof zipper !== 'function') {
+  if (!isFunction(zipper)) {
     fn = defaultZipper;
   }
   const maybe = new Maybe(subscribeActual);

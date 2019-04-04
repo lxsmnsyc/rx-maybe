@@ -30,9 +30,8 @@ export default (source, callable) => {
     return source;
   }
 
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.source = source;
   maybe.callable = callable;
-  maybe.subscribeActual = subscribeActual.bind(maybe);
   return maybe;
 };

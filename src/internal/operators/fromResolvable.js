@@ -36,7 +36,7 @@ export default (subscriber) => {
   if (typeof subscriber !== 'function') {
     return error(new Error('Maybe.fromResolvable: expects a function.'));
   }
-  const single = new Maybe();
+  const single = new Maybe(subscribeActual);
   single.subscriber = subscriber;
   single.subscribeActual = subscribeActual.bind(single);
   return single;

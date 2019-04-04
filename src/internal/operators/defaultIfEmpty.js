@@ -43,10 +43,9 @@ export default (source, value) => {
     return source;
   }
 
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.source = source;
   maybe.value = value;
-  maybe.subscribeActual = subscribeActual.bind(maybe);
 
   return maybe;
 };

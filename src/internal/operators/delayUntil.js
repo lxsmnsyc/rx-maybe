@@ -63,7 +63,7 @@ export default (source, other) => {
   if (!(other instanceof Maybe)) {
     return source;
   }
-  const single = new Maybe();
+  const single = new Maybe(subscribeActual);
   single.source = source;
   single.other = other;
   single.subscribeActual = subscribeActual.bind(single);

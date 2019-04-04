@@ -1,6 +1,6 @@
 import AbortController from 'abort-controller';
 import Maybe from '../../maybe';
-import { cleanObserver } from '../utils';
+import { cleanObserver, isFunction } from '../utils';
 
 function subscribeActual(observer) {
   const {
@@ -34,7 +34,7 @@ function subscribeActual(observer) {
     onError(x) {
       let result;
 
-      if (typeof resumeIfError === 'function') {
+      if (isFunction(resumeIfError)) {
         try {
           result = resumeIfError(x);
           if (result == null) {
@@ -72,7 +72,7 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (source, resumeIfError) => {
-  if (!(typeof resumeIfError === 'function' || resumeIfError instanceof Maybe)) {
+  if (!(isFunction(resumeIfError) || resumeIfError instanceof Maybe)) {
     return source;
   }
 

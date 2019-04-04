@@ -99,9 +99,8 @@ export default (sources, zipper) => {
   if (typeof zipper !== 'function') {
     fn = defaultZipper;
   }
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.sources = sources;
   maybe.zipper = fn;
-  maybe.subscribeActual = subscribeActual.bind(maybe);
   return maybe;
 };

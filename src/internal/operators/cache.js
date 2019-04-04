@@ -87,11 +87,10 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (source) => {
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.source = source;
   maybe.cached = false;
   maybe.subscribed = false;
   maybe.observers = [];
-  maybe.subscribeActual = subscribeActual.bind(maybe);
   return maybe;
 };

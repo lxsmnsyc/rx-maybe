@@ -38,8 +38,7 @@ export default (subscriber) => {
   if (typeof subscriber !== 'function') {
     return error(new Error('Maybe.create: There are no subscribers.'));
   }
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.subscriber = subscriber;
-  maybe.subscribeActual = subscribeActual.bind(maybe);
   return maybe;
 };

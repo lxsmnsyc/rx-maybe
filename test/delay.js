@@ -77,6 +77,22 @@ describe('Maybe', () => {
     /**
      *
      */
+    it('should not signal complete if aborted.', (done) => {
+      const source = Maybe.empty().delay(100);
+      const controller = source.subscribe(
+        () => done(false),
+        () => done(false),
+        () => done(false),
+      );
+
+      controller.abort();
+      if (controller.signal.aborted) {
+        done();
+      }
+    });
+    /**
+     *
+     */
     it('should not signal error if aborted.', (done) => {
       const source = Maybe.error(new Error('Hello')).delay(100);
       const controller = source.subscribe(

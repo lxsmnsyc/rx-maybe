@@ -39,7 +39,7 @@ function subscribeActual(observer) {
 }
 
 export default (source, value) => {
-  if (value != null) {
+  if (value == null) {
     return source;
   }
 

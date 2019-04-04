@@ -1,11 +1,12 @@
 import Maybe from '../../maybe';
 import error from './error';
+import { isFunction } from '../utils';
 
 /**
  * @ignore
  */
 export default (source, transformer) => {
-  if (typeof transformer !== 'function') {
+  if (!isFunction(transformer)) {
     return source;
   }
 

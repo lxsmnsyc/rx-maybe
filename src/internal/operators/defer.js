@@ -36,8 +36,7 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (supplier) => {
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.supplier = supplier;
-  maybe.subscribeActual = subscribeActual.bind(maybe);
   return maybe;
 };

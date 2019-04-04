@@ -15,8 +15,7 @@ export default (value) => {
   if (value == null) {
     return error(new Error('Maybe.just: received a null value.'));
   }
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.value = value;
-  maybe.subscribeActual = subscribeActual.bind(maybe);
   return maybe;
 };

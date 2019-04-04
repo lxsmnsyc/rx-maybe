@@ -1,5 +1,5 @@
 import Maybe from '../../maybe';
-import { cleanObserver } from '../utils';
+import { cleanObserver, isFunction } from '../utils';
 
 /**
  * @ignore
@@ -32,13 +32,11 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (source, callable) => {
-  if (typeof callable !== 'function') {
+  if (!isFunction(callable)) {
     return source;
   }
-
-  const single = new Maybe(subscribeActual);
-  single.source = source;
-  single.callable = callable;
-  single.subscribeActual = subscribeActual.bind(single);
-  return single;
+  const maybe = new Maybe(subscribeActual);
+  maybe.source = source;
+  maybe.callable = callable;
+  return maybe;
 };

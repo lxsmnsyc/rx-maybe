@@ -1,7 +1,7 @@
 /* eslint-disable no-loop-func */
 import AbortController from 'abort-controller';
 import Maybe from '../../maybe';
-import { isIterable, cleanObserver } from '../utils';
+import { isIterable, cleanObserver, isFunction } from '../utils';
 import error from './error';
 
 const defaultZipper = x => x;
@@ -96,7 +96,7 @@ export default (sources, zipper) => {
     return error(new Error('Maybe.zip: sources is not Iterable.'));
   }
   let fn = zipper;
-  if (typeof zipper !== 'function') {
+  if (!isFunction(zipper)) {
     fn = defaultZipper;
   }
   const maybe = new Maybe(subscribeActual);

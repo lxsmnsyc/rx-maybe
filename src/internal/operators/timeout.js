@@ -1,7 +1,7 @@
 
 import AbortController from 'abort-controller';
 import Maybe from '../../maybe';
-import { cleanObserver } from '../utils';
+import { cleanObserver, isNumber } from '../utils';
 
 /**
  * @ignore
@@ -57,7 +57,7 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (source, amount) => {
-  if (typeof amount !== 'number') {
+  if (!isNumber(amount)) {
     return source;
   }
   const maybe = new Maybe(subscribeActual);

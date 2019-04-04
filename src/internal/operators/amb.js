@@ -61,8 +61,7 @@ export default (sources) => {
   if (!isIterable(sources)) {
     return error(new Error('Maybe.amb: sources is not Iterable.'));
   }
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.sources = sources;
-  maybe.subscribeActual = subscribeActual.bind(maybe);
   return maybe;
 };

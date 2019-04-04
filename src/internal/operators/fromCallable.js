@@ -1,17 +1,19 @@
 import AbortController from 'abort-controller';
 import {
-  onErrorHandler, onSuccessHandler, isPromise, onCompleteHandler, cleanObserver,
+  isPromise, cleanObserver, isFunction,
 } from '../utils';
 import Maybe from '../../maybe';
-import { error, fromPromise } from '../operators';
+import fromPromise from './fromPromise';
+import error from './error';
 
 /**
  * @ignore
  */
 function subscribeActual(observer) {
+  const obs = cleanObserver(observer);
   const {
     onSuccess, onComplete, onError, onSubscribe,
-  } = cleanObserver(observer);
+  } = obs;
 
   const controller = new AbortController();
 
@@ -21,36 +23,27 @@ function subscribeActual(observer) {
     return;
   }
 
-  this.controller = controller;
-  this.onComplete = onComplete;
-  this.onSuccess = onSuccess;
-  this.onError = onError;
-
-  const resolve = onSuccessHandler.bind(this);
-  const resolveNone = onCompleteHandler.bind(this);
-  const reject = onErrorHandler.bind(this);
-
   let result;
   try {
     result = this.callable();
   } catch (e) {
-    reject(e);
+    onError(e);
     return;
   }
 
   if (isPromise(result)) {
-    fromPromise(result).subscribe(onSuccess, onError);
+    fromPromise(result).subscribeWith(obs);
   } else if (result == null) {
-    resolveNone();
+    onComplete();
   } else {
-    resolve(result);
+    onSuccess(result);
   }
 }
 /**
  * @ignore
  */
 export default (callable) => {
-  if (typeof callable !== 'function') {
+  if (!isFunction(callable)) {
     return error(new Error('Maybe.fromCallable: callable received is not a function.'));
   }
   const maybe = new Maybe(subscribeActual);

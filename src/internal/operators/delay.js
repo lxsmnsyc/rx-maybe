@@ -61,10 +61,9 @@ export default (source, amount, doDelayError) => {
   if (typeof amount !== 'number') {
     return source;
   }
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.source = source;
   maybe.amount = amount;
   maybe.doDelayError = doDelayError;
-  maybe.subscribeActual = subscribeActual.bind(maybe);
   return maybe;
 };

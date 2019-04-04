@@ -28,7 +28,7 @@ export default (source, callable) => {
   if (typeof callable !== 'function') {
     return source;
   }
-  const single = new Maybe();
+  const single = new Maybe(subscribeActual);
   single.source = source;
   single.callable = callable;
   single.subscribeActual = subscribeActual.bind(single);

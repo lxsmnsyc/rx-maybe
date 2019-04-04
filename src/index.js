@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
-import Single from './single';
+import Maybe from './maybe';
 import Emitter from './emitter';
 import Observer from './observer';
 
-export default Single;
+export default Maybe;

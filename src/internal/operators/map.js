@@ -1,5 +1,5 @@
 import Maybe from '../../maybe';
-import { cleanObserver } from '../utils';
+import { cleanObserver, isFunction } from '../utils';
 
 /**
  * @ignore
@@ -40,7 +40,7 @@ function subscribeActual(observer) {
  */
 export default (source, mapper) => {
   let ms = mapper;
-  if (typeof mapper !== 'function') {
+  if (!isFunction(mapper)) {
     ms = defaultMapper;
   }
 

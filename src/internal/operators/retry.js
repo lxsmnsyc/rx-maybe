@@ -66,9 +66,8 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (source, bipredicate) => {
-  const maybe = new Maybe();
+  const maybe = new Maybe(subscribeActual);
   maybe.source = source;
   maybe.bipredicate = bipredicate;
-  maybe.subscribeActual = subscribeActual.bind(maybe);
   return maybe;
 };

@@ -1208,6 +1208,7 @@ var Maybe = (function (AbortController) {
         } else {
           onComplete();
         }
+        controller.abort();
       },
       onError(x) {
         onError(x);

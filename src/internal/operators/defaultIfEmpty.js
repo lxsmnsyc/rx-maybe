@@ -38,6 +38,9 @@ function subscribeActual(observer) {
   });
 }
 
+/**
+ * @ignore
+ */
 export default (source, value) => {
   if (value == null) {
     return source;

@@ -54,12 +54,39 @@ import {
   onErrorReturnItem, retry, switchIfEmpty,
   takeUntil, timeout, timer, zip, zipWith,
 } from './internal/operators';
-
+/**
+ * The Maybe class represents a deferred computation and emission of a single value,
+ * no value at all or an exception.
+ *
+ * The Maybe class default consumer type it interacts with is the Observer via the
+ * subscribe(Observer) method.
+ *
+ * The Maybe operates with the following sequential protocol:
+ *
+ * onSubscribe (onSuccess | onError | onComplete)?
+ *
+ * Note that onSuccess, onError and onComplete are mutually exclusive events;
+ * unlike Observable, onSuccess is never followed by onError or onComplete.
+ *
+ * Like Observable, a running Maybe can be stopped through the AbortController instance
+ * provided to consumers through Observer.onSubscribe(AbortController).
+ *
+ * Like an Observable, a Maybe is lazy, can be either "hot" or "cold", synchronous or
+ * asynchronous.
+ *
+ * The documentation for this class makes use of marble diagrams. The following
+ * legend explains these diagrams:
+ *
+ * <img src="https://raw.githubusercontent.com/LXSMNSYC/rx-maybe/master/assets/images/maybe.png" class="diagram">
+ */
 export default class Maybe {
   /**
    * @ignore
    */
   constructor(subscribeActual) {
+    /**
+     * @ignore
+     */
     this.subscribeActual = subscribeActual;
   }
 
@@ -169,7 +196,7 @@ export default class Maybe {
    * Calls a function for each individual Observer to return
    * the actual Maybe source to be subscribed to.
    *
-   * @param {*} supplier
+   * @param {!function():Maybe} supplier
    * the function that is called for each individual Observer
    * and returns a Maybe instance to subscribe to
    * @returns {Maybe}
@@ -676,6 +703,7 @@ export default class Maybe {
    * @param {function(a: any, b: any):any} zipper
    * a function that combines the pairs of items from the two Maybe to
    * generate the items to be emitted by the resulting Maybe
+   * @returns {Maybe}
    */
   zipWith(other, zipper) {
     return zipWith(this, other, zipper);

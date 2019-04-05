@@ -53,6 +53,9 @@ function subscribeActual(observer) {
   });
 }
 
+/**
+ * @ignore
+ */
 export default (source, other) => {
   if (!(other instanceof Maybe)) {
     return source;

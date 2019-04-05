@@ -51,7 +51,7 @@ function onSuccessHandler(value) {
   }
   try {
     if (value == null) {
-      onError('onSuccess called with null value.');
+      onError(new Error('onSuccess called with null value.'));
     } else {
       onSuccess(value);
     }

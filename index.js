@@ -1209,6 +1209,7 @@ function subscribeActual$l(observer) {
       } else {
         onComplete();
       }
+      controller.abort();
     },
     onError(x) {
       onError(x);

@@ -3,6 +3,7 @@
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
 var AbortController = _interopDefault(require('abort-controller'));
+var Scheduler = _interopDefault(require('rx-scheduler'));
 
 /**
  * @ignore
@@ -578,9 +579,7 @@ function subscribeActual$7(observer) {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
-  const { amount, doDelayError } = this;
-
-  let timeout;
+  const { amount, scheduler, doDelayError } = this;
 
   const controller = new AbortController();
 
@@ -592,46 +591,59 @@ function subscribeActual$7(observer) {
     return;
   }
 
-  signal.addEventListener('abort', () => {
-    if (typeof timeout !== 'undefined') {
-      clearTimeout(timeout);
-    }
-  });
-
   this.source.subscribeWith({
     onSubscribe(ac) {
-      signal.addEventListener('abort', () => ac.abort());
+      signal.addEventListener('abort', () => {
+        ac.abort();
+      });
     },
     onSuccess(x) {
-      timeout = setTimeout(() => {
+      const ac = scheduler.delay(() => {
         onSuccess(x);
         controller.abort();
       }, amount);
+
+      signal.addEventListener('abort', () => {
+        ac.abort();
+      });
     },
     onComplete() {
-      timeout = setTimeout(() => {
+      const ac = scheduler.delay(() => {
         onComplete();
         controller.abort();
       }, amount);
+
+      signal.addEventListener('abort', () => {
+        ac.abort();
+      });
     },
     onError(x) {
-      timeout = setTimeout(() => {
+      const ac = scheduler.delay(() => {
         onError(x);
         controller.abort();
       }, doDelayError ? amount : 0);
+
+      signal.addEventListener('abort', () => {
+        ac.abort();
+      });
     },
   });
 }
 /**
  * @ignore
  */
-var delay = (source, amount, doDelayError) => {
+var delay = (source, amount, scheduler, doDelayError) => {
   if (!isNumber(amount)) {
     return source;
+  }
+  let sched = scheduler;
+  if (!(sched instanceof Scheduler.interface)) {
+    sched = Scheduler.current;
   }
   const maybe = new Maybe(subscribeActual$7);
   maybe.source = source;
   maybe.amount = amount;
+  maybe.scheduler = sched;
   maybe.doDelayError = doDelayError;
   return maybe;
 };
@@ -644,19 +656,10 @@ function subscribeActual$8(observer) {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
-  const { amount } = this;
-
-  let timeout;
-
+  const { amount, scheduler } = this;
   const controller = new AbortController();
 
   const { signal } = controller;
-
-  signal.addEventListener('abort', () => {
-    if (typeof timeout !== 'undefined') {
-      clearTimeout(timeout);
-    }
-  });
 
   onSubscribe(controller);
 
@@ -664,7 +667,7 @@ function subscribeActual$8(observer) {
     return;
   }
 
-  timeout = setTimeout(() => {
+  const abortable = scheduler.delay(() => {
     this.source.subscribeWith({
       onSubscribe(ac) {
         signal.addEventListener('abort', () => ac.abort());
@@ -683,17 +686,24 @@ function subscribeActual$8(observer) {
       },
     });
   }, amount);
+
+  signal.addEventListener('abort', () => abortable.abort());
 }
 /**
  * @ignore
  */
-var delaySubscription = (source, amount) => {
+var delaySubscription = (source, amount, scheduler) => {
   if (!isNumber(amount)) {
     return source;
+  }
+  let sched = scheduler;
+  if (!(sched instanceof Scheduler.interface)) {
+    sched = Scheduler.current;
   }
   const maybe = new Maybe(subscribeActual$8);
   maybe.source = source;
   maybe.amount = amount;
+  maybe.scheduler = sched;
   return maybe;
 };
 
@@ -1597,6 +1607,60 @@ var merge = (source) => {
 
 function subscribeActual$u(observer) {
   const {
+    onSubscribe, onSuccess, onComplete, onError,
+  } = cleanObserver(observer);
+
+  const { source, scheduler } = this;
+
+  const controller = new AbortController();
+  onSubscribe(controller);
+
+  const { signal } = controller;
+
+  if (signal.aborted) {
+    return;
+  }
+
+  source.subscribeWith({
+    onSubscribe(ac) {
+      signal.addEventListener('abort', () => ac.abort());
+    },
+    onSuccess(x) {
+      scheduler.schedule(() => {
+        onSuccess(x);
+        controller.abort();
+      });
+    },
+    onComplete() {
+      scheduler.schedule(() => {
+        onComplete();
+        controller.abort();
+      });
+    },
+    onError(x) {
+      scheduler.schedule(() => {
+        onError(x);
+        controller.abort();
+      });
+    },
+  });
+}
+/**
+ * @ignore
+ */
+var observeOn = (source, scheduler) => {
+  let sched = scheduler;
+  if (!(sched instanceof Scheduler.interface)) {
+    sched = Scheduler.current;
+  }
+  const maybe = new Maybe(subscribeActual$u);
+  maybe.source = source;
+  maybe.scheduler = sched;
+  return maybe;
+};
+
+function subscribeActual$v(observer) {
+  const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
@@ -1630,13 +1694,13 @@ var onErrorComplete = (source, item) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$u);
+  const maybe = new Maybe(subscribeActual$v);
   maybe.source = source;
   maybe.item = item;
   return maybe;
 };
 
-function subscribeActual$v(observer) {
+function subscribeActual$w(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -1710,13 +1774,13 @@ var onErrorResumeNext = (source, resumeIfError) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$v);
+  const maybe = new Maybe(subscribeActual$w);
   maybe.source = source;
   maybe.resumeIfError = resumeIfError;
   return maybe;
 };
 
-function subscribeActual$w(observer) {
+function subscribeActual$x(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -1752,13 +1816,13 @@ var onErrorReturn = (source, item) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$w);
+  const maybe = new Maybe(subscribeActual$x);
   maybe.source = source;
   maybe.item = item;
   return maybe;
 };
 
-function subscribeActual$x(observer) {
+function subscribeActual$y(observer) {
   const { onSuccess, onComplete, onSubscribe } = cleanObserver(observer);
 
   const { source, item } = this;
@@ -1780,7 +1844,7 @@ var onErrorReturnItem = (source, item) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$x);
+  const maybe = new Maybe(subscribeActual$y);
   maybe.source = source;
   maybe.item = item;
   return maybe;
@@ -1804,7 +1868,7 @@ const CONTROLLER = {
 /**
  * @ignore
  */
-function subscribeActual$y(observer) {
+function subscribeActual$z(observer) {
   observer.onSubscribe(CONTROLLER);
 }
 /**
@@ -1816,8 +1880,8 @@ let INSTANCE$1;
  */
 var never = () => {
   if (typeof INSTANCE$1 === 'undefined') {
-    INSTANCE$1 = new Maybe(subscribeActual$y);
-    INSTANCE$1.subscribeActual = subscribeActual$y.bind(INSTANCE$1);
+    INSTANCE$1 = new Maybe(subscribeActual$z);
+    INSTANCE$1.subscribeActual = subscribeActual$z.bind(INSTANCE$1);
   }
   return INSTANCE$1;
 };
@@ -1825,7 +1889,7 @@ var never = () => {
 /**
  * @ignore
  */
-function subscribeActual$z(observer) {
+function subscribeActual$A(observer) {
   const {
     onSubscribe, onComplete, onSuccess, onError,
   } = cleanObserver(observer);
@@ -1886,13 +1950,66 @@ function subscribeActual$z(observer) {
  * @ignore
  */
 var retry = (source, bipredicate) => {
-  const maybe = new Maybe(subscribeActual$z);
+  const maybe = new Maybe(subscribeActual$A);
   maybe.source = source;
   maybe.bipredicate = bipredicate;
   return maybe;
 };
 
-function subscribeActual$A(observer) {
+function subscribeActual$B(observer) {
+  const {
+    onSubscribe, onSuccess, onComplete, onError,
+  } = cleanObserver(observer);
+
+  const { source, scheduler } = this;
+
+  const controller = new AbortController();
+  onSubscribe(controller);
+
+  const { signal } = controller;
+
+  if (signal.aborted) {
+    return;
+  }
+
+  scheduler.schedule(() => {
+    if (signal.aborted) {
+      return;
+    }
+    source.subscribeWith({
+      onSubscribe(ac) {
+        signal.addEventListener('abort', () => ac.abort());
+      },
+      onSuccess(x) {
+        onSuccess(x);
+        controller.abort();
+      },
+      onComplete() {
+        onComplete();
+        controller.abort();
+      },
+      onError(x) {
+        onError(x);
+        controller.abort();
+      },
+    });
+  });
+}
+/**
+ * @ignore
+ */
+var subscribeOn = (source, scheduler) => {
+  let sched = scheduler;
+  if (!(sched instanceof Scheduler.interface)) {
+    sched = Scheduler.current;
+  }
+  const maybe = new Maybe(subscribeActual$B);
+  maybe.source = source;
+  maybe.scheduler = sched;
+  return maybe;
+};
+
+function subscribeActual$C(observer) {
   const {
     onSubscribe, onSuccess, onComplete, onError,
   } = cleanObserver(observer);
@@ -1951,7 +2068,7 @@ var switchIfEmpty = (source, other) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$A);
+  const maybe = new Maybe(subscribeActual$C);
   maybe.source = source;
   maybe.other = other;
 
@@ -1961,7 +2078,7 @@ var switchIfEmpty = (source, other) => {
 /**
  * @ignore
  */
-function subscribeActual$B(observer) {
+function subscribeActual$D(observer) {
   const {
     onSubscribe, onComplete, onSuccess, onError,
   } = cleanObserver(observer);
@@ -2027,7 +2144,7 @@ const takeUntil = (source, other) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$B);
+  const maybe = new Maybe(subscribeActual$D);
   maybe.source = source;
   maybe.other = other;
   return maybe;
@@ -2036,9 +2153,8 @@ const takeUntil = (source, other) => {
 /**
  * @ignore
  */
-function subscribeActual$C(observer) {
+function subscribeActual$E(observer) {
   const { onSuccess, onSubscribe } = cleanObserver(observer);
-
 
   const controller = new AbortController();
 
@@ -2050,33 +2166,37 @@ function subscribeActual$C(observer) {
     return;
   }
 
-  const timeout = setTimeout(onSuccess, this.amount, 0);
+  const timeout = this.scheduler.delay(() => onSuccess(0), this.amount);
 
-  signal.addEventListener('abort', () => {
-    clearTimeout(timeout);
-  });
+  signal.addEventListener('abort', () => timeout.abort());
 }
 /**
  * @ignore
  */
-var timer = (amount) => {
+var timer = (amount, scheduler) => {
   if (!isNumber(amount)) {
     return error(new Error('Maybe.timer: "amount" is not a number.'));
   }
-  const maybe = new Maybe(subscribeActual$C);
+
+  let sched = scheduler;
+  if (!(sched instanceof Scheduler.interface)) {
+    sched = Scheduler.current;
+  }
+  const maybe = new Maybe(subscribeActual$E);
   maybe.amount = amount;
+  maybe.scheduler = sched;
   return maybe;
 };
 
 /**
  * @ignore
  */
-function subscribeActual$D(observer) {
+function subscribeActual$F(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
-  const { amount } = this;
+  const { amount, scheduler } = this;
 
   const controller = new AbortController();
 
@@ -2088,28 +2208,26 @@ function subscribeActual$D(observer) {
     return;
   }
 
-  const timeout = setTimeout(
+  const timeout = scheduler.delay(
     () => {
-      onError(new Error('Maybe.timeout: TimeoutException (no success/completion signals within the specified timeout).'));
+      onError(new Error('Maybe.timeout: TimeoutException (no success signals within the specified timeout).'));
       controller.abort();
     },
     amount,
   );
 
-  signal.addEventListener('abort', () => {
-    clearTimeout(timeout);
-  });
+  signal.addEventListener('abort', () => timeout.abort());
 
   this.source.subscribeWith({
     onSubscribe(ac) {
       signal.addEventListener('abort', () => ac.abort());
     },
-    onComplete() {
-      onComplete();
-      controller.abort();
-    },
     onSuccess(x) {
       onSuccess(x);
+      controller.abort();
+    },
+    onComplete() {
+      onComplete();
       controller.abort();
     },
     onError(x) {
@@ -2121,13 +2239,18 @@ function subscribeActual$D(observer) {
 /**
  * @ignore
  */
-var timeout = (source, amount) => {
+var timeout = (source, amount, scheduler) => {
   if (!isNumber(amount)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$D);
+  let sched = scheduler;
+  if (!(sched instanceof Scheduler.interface)) {
+    sched = Scheduler.current;
+  }
+  const maybe = new Maybe(subscribeActual$F);
   maybe.source = source;
   maybe.amount = amount;
+  maybe.scheduler = sched;
   return maybe;
 };
 
@@ -2137,7 +2260,7 @@ const defaultZipper = x => x;
 /**
  * @ignore
  */
-function subscribeActual$E(observer) {
+function subscribeActual$G(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -2228,7 +2351,7 @@ var zip = (sources, zipper) => {
   if (!isFunction(zipper)) {
     fn = defaultZipper;
   }
-  const maybe = new Maybe(subscribeActual$E);
+  const maybe = new Maybe(subscribeActual$G);
   maybe.sources = sources;
   maybe.zipper = fn;
   return maybe;
@@ -2241,7 +2364,7 @@ const defaultZipper$1 = (x, y) => [x, y];
 /**
  * @ignore
  */
-function subscribeActual$F(observer) {
+function subscribeActual$H(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -2352,7 +2475,7 @@ var zipWith = (source, other, zipper) => {
   if (!isFunction(zipper)) {
     fn = defaultZipper$1;
   }
-  const maybe = new Maybe(subscribeActual$F);
+  const maybe = new Maybe(subscribeActual$H);
   maybe.source = source;
   maybe.other = other;
   maybe.zipper = fn;
@@ -2893,6 +3016,22 @@ class Maybe {
   }
 
   /**
+   * Returns a Maybe which emits the terminal events from the
+   * thread of the specified scheduler.
+   *
+   * @param {?Scheduler} scheduler
+   * the target scheduler to use for the non-blocking wait and emission.
+   * By default, schedules on the current thread.
+   *
+   * @returns {Maybe}
+   * the source Maybe modified so that its subscribers are
+   * notified on the specified Scheduler
+   */
+  observeOn(scheduler) {
+    return observeOn(this, scheduler);
+  }
+
+  /**
    * Returns a Maybe instance that if this Maybe emits an
    * error and the predicate returns true, it will emit an onComplete
    * and swallow the throwable.
@@ -2956,6 +3095,22 @@ class Maybe {
    */
   retry(bipredicate) {
     return retry(this, bipredicate);
+  }
+
+  /**
+   * Returns a Maybe which subscribes the child subscriber on the specified scheduler,
+   * making sure the subscription side-effects happen on that specific thread of the scheduler.
+   *
+   * @param {?Scheduler} scheduler
+   * the target scheduler to use for the non-blocking wait and emission.
+   * By default, schedules on the current thread.
+   *
+   * @returns {Maybe}
+   * the source Maybe modified so that its subscriptions happen
+   * on the specified Scheduler
+   */
+  subscribeOn(scheduler) {
+    return subscribeOn(this, scheduler);
   }
 
   /**

@@ -22,6 +22,31 @@ describe('#fromResolvable', () => {
     maybe.subscribe(
       x => (x === 'Hello World' ? done() : done(false)),
       () => done(false),
+      () => done(false),
+    );
+  });
+  /**
+   *
+   */
+  it('should complete.', (done) => {
+    const maybe = Maybe.fromResolvable(res => res());
+
+    maybe.subscribe(
+      () => done(false),
+      () => done(),
+      () => done(false),
+    );
+  });
+  /**
+   *
+   */
+  it('should error with the given error.', (done) => {
+    const maybe = Maybe.fromResolvable((res, rej) => rej(new Error('Hello World')));
+
+    maybe.subscribe(
+      () => done(false),
+      () => done(false),
+      () => done(),
     );
   });
   /**

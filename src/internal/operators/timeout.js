@@ -1,6 +1,5 @@
-
-import AbortController from 'abort-controller';
 import Scheduler from 'rx-scheduler';
+import { LinkedCancellable } from 'rx-cancellable';
 import Maybe from '../../maybe';
 import { cleanObserver, isNumber } from '../utils';
 
@@ -14,42 +13,27 @@ function subscribeActual(observer) {
 
   const { amount, scheduler } = this;
 
-  const controller = new AbortController();
-
-  const { signal } = controller;
+  const controller = new LinkedCancellable();
 
   onSubscribe(controller);
-
-  if (signal.aborted) {
-    return;
-  }
 
   const timeout = scheduler.delay(
     () => {
       onError(new Error('Maybe.timeout: TimeoutException (no success signals within the specified timeout).'));
-      controller.abort();
+      controller.cancel();
     },
     amount,
   );
 
-  signal.addEventListener('abort', () => timeout.abort());
+  controller.addEventListener('cancel', () => timeout.cancel());
 
   this.source.subscribeWith({
     onSubscribe(ac) {
-      signal.addEventListener('abort', () => ac.abort());
+      controller.link(ac);
     },
-    onSuccess(x) {
-      onSuccess(x);
-      controller.abort();
-    },
-    onComplete() {
-      onComplete();
-      controller.abort();
-    },
-    onError(x) {
-      onError(x);
-      controller.abort();
-    },
+    onComplete,
+    onSuccess,
+    onError,
   });
 }
 /**

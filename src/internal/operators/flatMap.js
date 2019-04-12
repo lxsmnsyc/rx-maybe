@@ -1,4 +1,4 @@
-import AbortController from 'abort-controller';
+import { LinkedCancellable } from 'rx-cancellable';
 import Maybe from '../../maybe';
 import { cleanObserver, isFunction } from '../utils';
 
@@ -10,27 +10,19 @@ function subscribeActual(observer) {
     onSubscribe, onComplete, onError, onSuccess,
   } = cleanObserver(observer);
 
-  const controller = new AbortController();
-
-  const { signal } = controller;
+  const controller = new LinkedCancellable();
 
   onSubscribe(controller);
-
-  if (signal.aborted) {
-    return;
-  }
 
   const { mapper, source } = this;
 
   source.subscribeWith({
     onSubscribe(ac) {
-      signal.addEventListener('abort', () => ac.abort());
+      controller.link(ac);
     },
-    onComplete() {
-      onComplete();
-      controller.abort();
-    },
+    onComplete,
     onSuccess(x) {
+      controller.unlink();
       let result;
       try {
         result = mapper(x);
@@ -44,26 +36,14 @@ function subscribeActual(observer) {
       }
       result.subscribeWith({
         onSubscribe(ac) {
-          signal.addEventListener('abort', () => ac.abort());
+          controller.link(ac);
         },
-        onComplete() {
-          onComplete();
-          controller.abort();
-        },
-        onSuccess(v) {
-          onSuccess(v);
-          controller.abort();
-        },
-        onError(v) {
-          onError(v);
-          controller.abort();
-        },
+        onComplete,
+        onSuccess,
+        onError,
       });
     },
-    onError(v) {
-      onError(v);
-      controller.abort();
-    },
+    onError,
   });
 }
 

@@ -1,4 +1,3 @@
-import AbortController from 'abort-controller';
 import Scheduler from 'rx-scheduler';
 import Maybe from '../../maybe';
 import { cleanObserver, isNumber } from '../utils';
@@ -10,19 +9,7 @@ import error from './error';
 function subscribeActual(observer) {
   const { onSuccess, onSubscribe } = cleanObserver(observer);
 
-  const controller = new AbortController();
-
-  const { signal } = controller;
-
-  onSubscribe(controller);
-
-  if (signal.aborted) {
-    return;
-  }
-
-  const timeout = this.scheduler.delay(() => onSuccess(0), this.amount);
-
-  signal.addEventListener('abort', () => timeout.abort());
+  onSubscribe(this.scheduler.delay(() => onSuccess(0), this.amount));
 }
 /**
  * @ignore

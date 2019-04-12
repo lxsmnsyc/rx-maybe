@@ -72,6 +72,6 @@ describe('#doFinally', () => {
       () => done(false),
       () => done(false),
     );
-    controller.abort();
+    controller.cancel();
   });
 });

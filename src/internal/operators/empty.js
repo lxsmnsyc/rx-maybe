@@ -15,7 +15,6 @@ let INSTANCE;
 export default () => {
   if (typeof INSTANCE === 'undefined') {
     INSTANCE = new Maybe(subscribeActual);
-    INSTANCE.subscribeActual = subscribeActual.bind(INSTANCE);
   }
   return INSTANCE;
 };

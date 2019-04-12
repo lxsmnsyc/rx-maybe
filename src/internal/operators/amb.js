@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-syntax */
-import AbortController from 'abort-controller';
+import { CompositeCancellable } from 'rx-cancellable';
 import Maybe from '../../maybe';
 import { isIterable, cleanObserver } from '../utils';
 import error from './error';
@@ -12,44 +12,34 @@ function subscribeActual(observer) {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
-  const controller = new AbortController();
-
-  const { signal } = controller;
+  const controller = new CompositeCancellable();
 
   onSubscribe(controller);
-
-  if (signal.aborted) {
-    return;
-  }
 
   const { sources } = this;
 
   for (const maybe of sources) {
-    if (signal.aborted) {
-      return;
-    }
-
     if (maybe instanceof Maybe) {
       maybe.subscribeWith({
         onSubscribe(ac) {
-          signal.addEventListener('abort', () => ac.abort());
+          controller.add(ac);
         },
         onComplete() {
           onComplete();
-          controller.abort();
+          controller.cancel();
         },
         onSuccess(x) {
           onSuccess(x);
-          controller.abort();
+          controller.cancel();
         },
         onError(x) {
           onError(x);
-          controller.abort();
+          controller.cancel();
         },
       });
     } else {
       onError(new Error('Maybe.amb: One of the sources is a non-Maybe.'));
-      controller.abort();
+      controller.cancel();
       break;
     }
   }

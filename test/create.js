@@ -53,10 +53,9 @@ describe('#create', () => {
   /**
    *
    */
-  it('should be aborted successfully if emitter is aborted before any signal.', (done) => {
+  it('should be cancelled successfully if emitter is cancelled before any signal.', (done) => {
     const maybe = Maybe.create((e) => {
-      setTimeout(e.onSuccess, 100, true);
-      e.abort();
+      setTimeout(() => e.onSuccess(true), 100);
     });
 
     const controller = maybe.subscribe(
@@ -64,7 +63,8 @@ describe('#create', () => {
       () => done(false),
       () => done(false),
     );
-    if (controller.signal.aborted) {
+    controller.cancel();
+    if (controller.cancelled) {
       done();
     }
   });

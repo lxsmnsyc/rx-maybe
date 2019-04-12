@@ -2118,8 +2118,8 @@ var zipWith = (source, other, zipper) => {
  * The Maybe class represents a deferred computation and emission of a single value,
  * no value at all or an exception.
  *
- * The Maybe class default consumer type it interacts with is the Observer via the
- * subscribe(Observer) method.
+ * The Maybe class default consumer type it interacts with is the MaybeObserver via the
+ * subscribe(MaybeObserver) method.
  *
  * The Maybe operates with the following sequential protocol:
  *
@@ -2129,7 +2129,7 @@ var zipWith = (source, other, zipper) => {
  * unlike Observable, onSuccess is never followed by onError or onComplete.
  *
  * Like Observable, a running Maybe can be stopped through the Cancellable instance
- * provided to consumers through Observer.onSubscribe(Cancellable).
+ * provided to consumers through MaybeObserver.onSubscribe(Cancellable).
  *
  * Like an Observable, a Maybe is lazy, can be either "hot" or "cold", synchronous or
  * asynchronous.
@@ -2201,11 +2201,11 @@ class Maybe {
    * Transform a Maybe by applying a particular Transformer
    * function to it.
    *
-   * This method operates on the Maybe itself whereas lift(Observer)
+   * This method operates on the Maybe itself whereas lift(MaybeObserver)
    * operates on the Maybe's Observers.
    *
    * If the operator you are creating is designed to act on
-   * the individual item emitted by a Maybe, use lift(Observer).
+   * the individual item emitted by a Maybe, use lift(MaybeObserver).
    * If your operator is designed to transform the source
    * Maybe as a whole (for instance, by applying a particular
    * set of existing Maybe operators to it) use compose.
@@ -2224,7 +2224,7 @@ class Maybe {
    * reactive world with the callback-style world.
    *
    * @param {!function(e: Emitter):any} subscriber
-   * the emitter that is called when a Observer
+   * the emitter that is called when a MaybeObserver
    * subscribes to the returned Maybe
    * @returns {Maybe}
    */
@@ -2253,11 +2253,11 @@ class Maybe {
   }
 
   /**
-   * Calls a function for each individual Observer to return
+   * Calls a function for each individual MaybeObserver to return
    * the actual Maybe source to be subscribed to.
    *
    * @param {!function():Maybe} supplier
-   * the function that is called for each individual Observer
+   * the function that is called for each individual MaybeObserver
    * and returns a Maybe instance to subscribe to
    * @returns {Maybe}
    */
@@ -2349,7 +2349,7 @@ class Maybe {
   }
 
   /**
-   * Calls the shared action if an Observer subscribed to the current
+   * Calls the shared action if an MaybeObserver subscribed to the current
    * Maybe cancels the common Cancellable it received via onSubscribe.
    *
    * @param {!function} action
@@ -2374,7 +2374,7 @@ class Maybe {
 
   /**
    * Calls the shared consumer with the error sent via onError for each
-   * Observer that subscribes to the current Maybe.
+   * MaybeObserver that subscribes to the current Maybe.
    * @param {!function(e: Error)} consumer
    * the consumer called with the success value of onError
    * @returns {Maybe}
@@ -2397,7 +2397,7 @@ class Maybe {
 
   /**
    * Calls the shared consumer with the Cancellable sent through
-   * the onSubscribe for each Observer that subscribes to the current Maybe.
+   * the onSubscribe for each MaybeObserver that subscribes to the current Maybe.
    *
    * @param {!function(ac: Cancellable)} consumer
    * the consumer called with the Cancellable sent via onSubscribe
@@ -2409,7 +2409,7 @@ class Maybe {
 
   /**
    * Calls the shared consumer with the success value sent via onSuccess
-   * for each Observer that subscribes to the current Maybe.
+   * for each MaybeObserver that subscribes to the current Maybe.
    *
    * @param {!function(success: any)} consumer
    * the consumer called with the success value of onSuccess
@@ -2446,7 +2446,7 @@ class Maybe {
    * the subscriber subscribes to it.
    * @param {!(function():Error|Error)} err
    * - the callable that is called for each individual
-   * Observer and returns or throws a value to be emitted.
+   * MaybeObserver and returns or throws a value to be emitted.
    * - the particular value to pass to onError
    * @returns {Maybe}
    * a Maybe that invokes the subscriber's onError method when the
@@ -2486,21 +2486,21 @@ class Maybe {
 
   /**
    * Returns a Maybe that invokes the given callable for each individual
-   * Observer that subscribes and emits the resulting non-null item via
+   * MaybeObserver that subscribes and emits the resulting non-null item via
    * onSuccess while considering a null result from the callable as
    * indication for valueless completion via onComplete.
    *
    * This operator allows you to defer the execution of the given Callable
-   * until a Observer subscribes to the returned Maybe. In other terms,
+   * until a MaybeObserver subscribes to the returned Maybe. In other terms,
    * this source operator evaluates the given callable "lazily"
    *
    * If the result is a Promise-like instance, the
-   * Observer is then subscribed to the Promise through
+   * MaybeObserver is then subscribed to the Promise through
    * the fromPromise operator.
    *
    * @param {!function():any} callable
    * a callable instance whose execution should be deferred and performed
-   * for each individual Observer that subscribes to the returned Maybe.
+   * for each individual MaybeObserver that subscribes to the returned Maybe.
    * @returns {Maybe}
    */
   static fromCallable(callable) {
@@ -2546,13 +2546,13 @@ class Maybe {
    * please consider other standard composition methods first;
    *
    * Returns a Maybe which, when subscribed to, invokes the operator
-   * method of the provided Observer for each individual downstream Maybe
+   * method of the provided MaybeObserver for each individual downstream Maybe
    * and allows the insertion of a custom operator by accessing the
-   * downstream's Observer during this subscription phase and providing a new
-   * Observer, containing the custom operator's intended business logic,
+   * downstream's MaybeObserver during this subscription phase and providing a new
+   * MaybeObserver, containing the custom operator's intended business logic,
    * that will be used in the subscription process going further upstream.
    *
-   * Generally, such a new Observer will wrap the downstream's Observer
+   * Generally, such a new MaybeObserver will wrap the downstream's MaybeObserver
    * and forwards the onSuccess, onError and onComplete events from the
    * upstream directly or according to the emission pattern the custom
    * operator's business logic requires. In addition, such operator can
@@ -2566,9 +2566,9 @@ class Maybe {
    * using compose() method and  creating a transformer function
    * with it is recommended.
    *
-   * @param {!function(observer: Observer):Observer} operator
-   * the function that receives the downstream's Observer and should
-   * return a Observer with custom behavior to be used as the consumer
+   * @param {!function(observer: MaybeObserver):MaybeObserver} operator
+   * the function that receives the downstream's MaybeObserver and should
+   * return a MaybeObserver with custom behavior to be used as the consumer
    * for the current Maybe.
    * @returns {Maybe}
    */
@@ -2608,11 +2608,11 @@ class Maybe {
 
   /**
    * Returns a Maybe that never sends any items or notifications to a
-   * Observer.
+   * MaybeObserver.
    *
    * @returns {Maybe}
    * a Maybe that never emits any items or sends any notifications to a
-   * Observer
+   * MaybeObserver
    */
   static never() {
     return never();
@@ -2747,7 +2747,7 @@ class Maybe {
    * Returns a Maybe that mirrors the source Maybe but applies a
    * timeout policy for each emitted item. If the next item isn't
    * emitted within the specified timeout duration starting from its
-   * predecessor, the resulting Maybe terminates and notifies Observer
+   * predecessor, the resulting Maybe terminates and notifies MaybeObserver
    * of an Error with TimeoutException.
    *
    * @param {!number} amount
@@ -2803,9 +2803,9 @@ class Maybe {
 
   /**
    * @desc
-   * Subscribes with an Object that is an Observer.
+   * Subscribes with an Object that is an MaybeObserver.
    *
-   * An Object is considered as an Observer if:
+   * An Object is considered as an MaybeObserver if:
    *  - if it has the method onSubscribe
    *  - if it has the method onComplete (optional)
    *  - if it has the method onSuccess (optional)

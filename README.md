@@ -28,12 +28,14 @@ CDN
 
 * jsDelivr
 ```html
-<script src="https://unpkg.com/rx-scheduler/dist/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/rx-cancellable/dist/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/rx-scheduler/dist/index.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/rx-maybe/dist/index.min.js"></script>
 ```
 
 * unpkg
 ```html
+<script src="https://unpkg.com/rx-cancellable/dist/index.min.js"></script>
 <script src="https://unpkg.com/rx-scheduler/dist/index.min.js"></script>
 <script src="https://unpkg.com/rx-maybe/dist/index.min.js"></script>
 ```
@@ -73,10 +75,12 @@ npm run build
 ```
 
 ## Changelogs
+* 0.3.0
+  - Replaced AbortController with [Cancellable](https://lxsmnsyc.github.io/rx-cancellable/).
+  - Renamed `doOnAbort` with `doOnCancel`
 * 0.2.0
   - now uses [Schedulers](https://github.com/LXSMNSYC/rx-scheduler)
   - `delay`, `delaySubscription`, `timeout` and `timer` now accepts `Schedulers` (defaults to `Scheduler.current`).
   - added two new operators: `observeOn` (observes the emissions on a given Scheduler) and `subscribeOn` (subscribes to a given Single on a given Scheduler).
-
 * 0.1.0
   * Release

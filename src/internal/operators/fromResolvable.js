@@ -1,33 +1,23 @@
-import AbortController from 'abort-controller';
 import {
-  onErrorHandler, onSuccessHandler, onCompleteHandler, cleanObserver, isFunction,
+  cleanObserver, isFunction,
 } from '../utils';
 import Maybe from '../../maybe';
 import error from './error';
+import MaybeEmitter from '../../emitter';
 
 function subscribeActual(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
-  const controller = new AbortController();
+  const emitter = new MaybeEmitter(onSuccess, onComplete, onError);
 
-  onSubscribe(controller);
+  onSubscribe(emitter);
 
-  if (controller.signal.aborted) {
-    return;
-  }
-
-  this.controller = controller;
-  this.onComplete = onComplete;
-  this.onSuccess = onSuccess;
-  this.onError = onError;
-
-  const resolveNone = onCompleteHandler.bind(this);
-  const resolve = onSuccessHandler.bind(this);
-  const reject = onErrorHandler.bind(this);
-
-  this.subscriber(x => (x == null ? resolveNone() : resolve(x)), reject);
+  this.subscriber(
+    x => (x == null ? emitter.onComplete() : emitter.onSuccess(x)),
+    x => emitter.onError(x),
+  );
 }
 /**
  * @ignore

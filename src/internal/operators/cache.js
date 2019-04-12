@@ -1,4 +1,4 @@
-import AbortController from 'abort-controller';
+import { BooleanCancellable } from 'rx-cancellable';
 import Maybe from '../../maybe';
 import { cleanObserver } from '../utils';
 
@@ -18,17 +18,13 @@ function subscribeActual(observer) {
     const index = observers.length;
     observers[index] = observer;
 
-    const controller = new AbortController();
+    const controller = new BooleanCancellable();
 
-    controller.signal.addEventListener('abort', () => {
+    controller.addEventListener('cancel', () => {
       observers.splice(index, 1);
     });
 
     onSubscribe(controller);
-
-    if (controller.signal.aborted) {
-      return;
-    }
 
     if (!subscribed) {
       source.subscribeWith({
@@ -43,6 +39,7 @@ function subscribeActual(observer) {
           for (const obs of observers) {
             obs.onSuccess(x);
           }
+          controller.cancel();
           this.observers = undefined;
         },
         onComplete: () => {
@@ -52,6 +49,7 @@ function subscribeActual(observer) {
           for (const obs of observers) {
             obs.onComplete();
           }
+          controller.cancel();
           this.observers = undefined;
         },
         onError: (x) => {
@@ -68,7 +66,7 @@ function subscribeActual(observer) {
       this.subscribed = true;
     }
   } else {
-    const controller = new AbortController();
+    const controller = new BooleanCancellable();
     onSubscribe(controller);
 
     const { value, error } = this;
@@ -79,7 +77,7 @@ function subscribeActual(observer) {
     } else {
       onComplete();
     }
-    controller.abort();
+    controller.cancel();
   }
 }
 

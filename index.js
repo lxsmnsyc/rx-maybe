@@ -2,7 +2,7 @@
 
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
-var AbortController = _interopDefault(require('abort-controller'));
+var rxCancellable = require('rx-cancellable');
 var Scheduler = _interopDefault(require('rx-scheduler'));
 
 /**
@@ -45,57 +45,6 @@ const isPromise = (obj) => {
 /**
  * @ignore
  */
-function onSuccessHandler(value) {
-  const { onSuccess, onError, controller } = this;
-  if (controller.signal.aborted) {
-    return;
-  }
-  try {
-    if (value == null) {
-      onError(new Error('onSuccess called with null value.'));
-    } else {
-      onSuccess(value);
-    }
-  } finally {
-    controller.abort();
-  }
-}
-/**
- * @ignore
- */
-function onCompleteHandler() {
-  const { onComplete, controller } = this;
-  if (controller.signal.aborted) {
-    return;
-  }
-  try {
-    onComplete();
-  } finally {
-    controller.abort();
-  }
-}
-/**
- * @ignore
- */
-function onErrorHandler(err) {
-  const { onError, controller } = this;
-  let report = err;
-  if (!(err instanceof Error)) {
-    report = new Error('onError called with a non-Error value.');
-  }
-  if (controller.signal.aborted) {
-    return;
-  }
-
-  try {
-    onError(report);
-  } finally {
-    controller.abort();
-  }
-}
-/**
- * @ignore
- */
 const identity = x => x;
 /**
  * @ignore
@@ -116,12 +65,12 @@ const cleanObserver = x => ({
 const immediateSuccess = (o, x) => {
   // const disposable = new SimpleDisposable();
   const { onSubscribe, onSuccess } = cleanObserver(o);
-  const controller = new AbortController();
+  const controller = new rxCancellable.BooleanCancellable();
   onSubscribe(controller);
 
-  if (!controller.signal.aborted) {
+  if (!controller.cancelled) {
     onSuccess(x);
-    controller.abort();
+    controller.cancel();
   }
 };
 
@@ -131,12 +80,12 @@ const immediateSuccess = (o, x) => {
 const immediateComplete = (o) => {
   // const disposable = new SimpleDisposable();
   const { onSubscribe, onComplete } = cleanObserver(o);
-  const controller = new AbortController();
+  const controller = new rxCancellable.BooleanCancellable();
   onSubscribe(controller);
 
-  if (!controller.signal.aborted) {
+  if (!controller.cancelled) {
     onComplete();
-    controller.abort();
+    controller.cancel();
   }
 };
 /**
@@ -144,12 +93,12 @@ const immediateComplete = (o) => {
  */
 const immediateError = (o, x) => {
   const { onSubscribe, onError } = cleanObserver(o);
-  const controller = new AbortController();
+  const controller = new rxCancellable.BooleanCancellable();
   onSubscribe(controller);
 
-  if (!controller.signal.aborted) {
+  if (!controller.cancelled) {
     onError(x);
-    controller.abort();
+    controller.cancel();
   }
 };
 
@@ -198,44 +147,34 @@ function subscribeActual$1(observer) {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
-  const controller = new AbortController();
-
-  const { signal } = controller;
+  const controller = new rxCancellable.CompositeCancellable();
 
   onSubscribe(controller);
-
-  if (signal.aborted) {
-    return;
-  }
 
   const { sources } = this;
 
   for (const maybe of sources) {
-    if (signal.aborted) {
-      return;
-    }
-
     if (maybe instanceof Maybe) {
       maybe.subscribeWith({
         onSubscribe(ac) {
-          signal.addEventListener('abort', () => ac.abort());
+          controller.add(ac);
         },
         onComplete() {
           onComplete();
-          controller.abort();
+          controller.cancel();
         },
         onSuccess(x) {
           onSuccess(x);
-          controller.abort();
+          controller.cancel();
         },
         onError(x) {
           onError(x);
-          controller.abort();
+          controller.cancel();
         },
       });
     } else {
       onError(new Error('Maybe.amb: One of the sources is a non-Maybe.'));
-      controller.abort();
+      controller.cancel();
       break;
     }
   }
@@ -255,81 +194,17 @@ var amb = (sources) => {
 /**
  * @ignore
  */
-function subscribeActual$2(observer) {
-  const {
-    onSuccess, onComplete, onError, onSubscribe,
-  } = cleanObserver(observer);
-
-  const controller = new AbortController();
-
-  const { signal } = controller;
-
-  onSubscribe(controller);
-
-  if (signal.aborted) {
-    return;
-  }
-
-
-  const sharedComplete = () => {
-    if (!signal.aborted) {
-      onComplete();
-      controller.abort();
-    }
-  };
-  const sharedSuccess = (x) => {
-    if (!signal.aborted) {
-      onSuccess(x);
-      controller.abort();
-    }
-  };
-  const sharedError = (x) => {
-    if (!signal.aborted) {
-      onError(x);
-      controller.abort();
-    }
-  };
-
-  const { source, other } = this;
-
-  source.subscribeWith({
-    onSubscribe(ac) {
-      signal.addEventListener('abort', () => ac.abort());
-    },
-    onComplete: sharedComplete,
-    onSuccess: sharedSuccess,
-    onError: sharedError,
-  });
-  other.subscribeWith({
-    onSubscribe(ac) {
-      if (signal.aborted) {
-        ac.abort();
-      } else {
-        signal.addEventListener('abort', () => ac.abort());
-      }
-    },
-    onComplete: sharedComplete,
-    onSuccess: sharedSuccess,
-    onError: sharedError,
-  });
-}
-/**
- * @ignore
- */
 var ambWith = (source, other) => {
   if (!(other instanceof Maybe)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$2);
-  maybe.source = source;
-  maybe.other = other;
-  return maybe;
+  return amb([source, other]);
 };
 
 /**
  * @ignore
  */
-function subscribeActual$3(observer) {
+function subscribeActual$2(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -342,17 +217,13 @@ function subscribeActual$3(observer) {
     const index = observers.length;
     observers[index] = observer;
 
-    const controller = new AbortController();
+    const controller = new rxCancellable.BooleanCancellable();
 
-    controller.signal.addEventListener('abort', () => {
+    controller.addEventListener('cancel', () => {
       observers.splice(index, 1);
     });
 
     onSubscribe(controller);
-
-    if (controller.signal.aborted) {
-      return;
-    }
 
     if (!subscribed) {
       source.subscribeWith({
@@ -367,6 +238,7 @@ function subscribeActual$3(observer) {
           for (const obs of observers) {
             obs.onSuccess(x);
           }
+          controller.cancel();
           this.observers = undefined;
         },
         onComplete: () => {
@@ -376,6 +248,7 @@ function subscribeActual$3(observer) {
           for (const obs of observers) {
             obs.onComplete();
           }
+          controller.cancel();
           this.observers = undefined;
         },
         onError: (x) => {
@@ -392,7 +265,7 @@ function subscribeActual$3(observer) {
       this.subscribed = true;
     }
   } else {
-    const controller = new AbortController();
+    const controller = new rxCancellable.BooleanCancellable();
     onSubscribe(controller);
 
     const { value, error } = this;
@@ -403,7 +276,7 @@ function subscribeActual$3(observer) {
     } else {
       onComplete();
     }
-    controller.abort();
+    controller.cancel();
   }
 }
 
@@ -411,7 +284,7 @@ function subscribeActual$3(observer) {
  * @ignore
  */
 var cache = (source) => {
-  const maybe = new Maybe(subscribeActual$3);
+  const maybe = new Maybe(subscribeActual$2);
   maybe.source = source;
   maybe.cached = false;
   maybe.subscribed = false;
@@ -422,20 +295,140 @@ var cache = (source) => {
 /**
  * @ignore
  */
-function subscribeActual$4(observer) {
+const LINK = new WeakMap();
+/**
+ * Abstraction over a MaybeObserver that allows associating
+ * a resource with it.
+ *
+ * Calling onSuccess(Object) multiple times has no effect.
+ * Calling onComplete() multiple times has no effect.
+ * Calling onError(Error) multiple times has no effect.
+ */
+// eslint-disable-next-line no-unused-vars
+class MaybeEmitter extends rxCancellable.Cancellable {
+  constructor(success, complete, error) {
+    super();
+    /**
+     * @ignore
+     */
+    this.success = success;
+    /**
+     * @ignore
+     */
+    this.complete = complete;
+    /**
+     * @ignore
+     */
+    this.error = error;
+
+    LINK.set(this, new rxCancellable.BooleanCancellable());
+  }
+
+  /**
+   * Returns true if the emitter is cancelled.
+   * @returns {boolean}
+   */
+  get cancelled() {
+    return LINK.get(this).cancelled;
+  }
+
+  /**
+   * Returns true if the emitter is cancelled successfully.
+   * @returns {boolean}
+   */
+  cancel() {
+    return LINK.get(this).cancel();
+  }
+
+  /**
+   * Set the given Cancellable as the Emitter's cancellable state.
+   * @param {Cancellable} cancellable
+   * The Cancellable instance
+   * @returns {boolean}
+   * Returns true if the cancellable is valid.
+   */
+  setCancellable(cancellable) {
+    if (cancellable instanceof rxCancellable.Cancellable) {
+      if (this.cancelled) {
+        cancellable.cancel();
+      } else if (cancellable.cancelled) {
+        this.cancel();
+        return true;
+      } else {
+        const link = LINK.get(this);
+        LINK.set(this, cancellable);
+        link.cancel();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Emits a completion.
+   */
+  // eslint-disable-next-line class-methods-use-this, no-unused-vars
+  onComplete() {
+    if (this.cancelled) {
+      return;
+    }
+    try {
+      this.complete();
+    } finally {
+      this.cancel();
+    }
+  }
+
+  /**
+   * Emits a success value.
+   * @param {!any} value
+   */
+  // eslint-disable-next-line class-methods-use-this, no-unused-vars
+  onSuccess(value) {
+    if (this.cancelled) {
+      return;
+    }
+    try {
+      if (typeof value === 'undefined') {
+        this.error(new Error('onSuccess called with a null value.'));
+      } else {
+        this.success(value);
+      }
+    } finally {
+      this.cancel();
+    }
+  }
+
+  /**
+   * Emits an error value.
+   * @param {!Error} err
+   */
+  // eslint-disable-next-line class-methods-use-this, no-unused-vars
+  onError(err) {
+    let report = err;
+    if (!(err instanceof Error)) {
+      report = new Error('onError called with a non-Error value.');
+    }
+    if (this.cancelled) {
+      return;
+    }
+    try {
+      this.error(report);
+    } finally {
+      this.cancel();
+    }
+  }
+}
+
+/**
+ * @ignore
+ */
+function subscribeActual$3(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
-  const emitter = new AbortController();
-  emitter.onComplete = onCompleteHandler.bind(this);
-  emitter.onSuccess = onSuccessHandler.bind(this);
-  emitter.onError = onErrorHandler.bind(this);
-
-  this.controller = emitter;
-  this.onComplete = onComplete;
-  this.onSuccess = onSuccess;
-  this.onError = onError;
+  const emitter = new MaybeEmitter(onSuccess, onComplete, onError);
 
   onSubscribe(emitter);
 
@@ -449,10 +442,10 @@ function subscribeActual$4(observer) {
  * @ignore
  */
 var create = (subscriber) => {
-  if (!isFunction(subscriber)) {
+  if (typeof subscriber !== 'function') {
     return error(new Error('Maybe.create: There are no subscribers.'));
   }
-  const maybe = new Maybe(subscribeActual$4);
+  const maybe = new Maybe(subscribeActual$3);
   maybe.subscriber = subscriber;
   return maybe;
 };
@@ -480,39 +473,26 @@ var compose = (source, transformer) => {
   return result;
 };
 
-function subscribeActual$5(observer) {
+function subscribeActual$4(observer) {
   const {
     onSubscribe, onSuccess, onError,
   } = cleanObserver(observer);
 
-  const controller = new AbortController();
+  const controller = new rxCancellable.LinkedCancellable();
 
   onSubscribe(controller);
-
-  const { signal } = controller;
-
-  if (signal.aborted) {
-    return;
-  }
 
   const { source, value } = this;
 
   source.subscribeWith({
     onSubscribe(ac) {
-      signal.addEventListener('abort', () => ac.abort());
-    },
-    onSuccess(x) {
-      onSuccess(x);
-      controller.abort();
+      controller.link(ac);
     },
     onComplete() {
       onSuccess(value);
-      controller.abort();
     },
-    onError(x) {
-      onError(x);
-      controller.abort();
-    },
+    onSuccess,
+    onError,
   });
 }
 
@@ -524,7 +504,7 @@ var defaultIfEmpty = (source, value) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$5);
+  const maybe = new Maybe(subscribeActual$4);
   maybe.source = source;
   maybe.value = value;
 
@@ -534,7 +514,7 @@ var defaultIfEmpty = (source, value) => {
 /**
  * @ignore
  */
-function subscribeActual$6(observer) {
+function subscribeActual$5(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -566,7 +546,7 @@ function subscribeActual$6(observer) {
  * @ignore
  */
 var defer = (supplier) => {
-  const maybe = new Maybe(subscribeActual$6);
+  const maybe = new Maybe(subscribeActual$5);
   maybe.supplier = supplier;
   return maybe;
 };
@@ -574,58 +554,33 @@ var defer = (supplier) => {
 /**
  * @ignore
  */
-function subscribeActual$7(observer) {
+function subscribeActual$6(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
   const { amount, scheduler, doDelayError } = this;
 
-  const controller = new AbortController();
-
-  const { signal } = controller;
+  const controller = new rxCancellable.LinkedCancellable();
 
   onSubscribe(controller);
 
-  if (signal.aborted) {
-    return;
-  }
-
   this.source.subscribeWith({
     onSubscribe(ac) {
-      signal.addEventListener('abort', () => {
-        ac.abort();
-      });
+      controller.link(ac);
     },
     onSuccess(x) {
-      const ac = scheduler.delay(() => {
+      controller.link(scheduler.delay(() => {
         onSuccess(x);
-        controller.abort();
-      }, amount);
-
-      signal.addEventListener('abort', () => {
-        ac.abort();
-      });
+      }, amount));
     },
     onComplete() {
-      const ac = scheduler.delay(() => {
-        onComplete();
-        controller.abort();
-      }, amount);
-
-      signal.addEventListener('abort', () => {
-        ac.abort();
-      });
+      controller.link(scheduler.delay(onComplete, amount));
     },
     onError(x) {
-      const ac = scheduler.delay(() => {
+      controller.link(scheduler.delay(() => {
         onError(x);
-        controller.abort();
-      }, doDelayError ? amount : 0);
-
-      signal.addEventListener('abort', () => {
-        ac.abort();
-      });
+      }, doDelayError ? amount : 0));
     },
   });
 }
@@ -640,7 +595,7 @@ var delay = (source, amount, scheduler, doDelayError) => {
   if (!(sched instanceof Scheduler.interface)) {
     sched = Scheduler.current;
   }
-  const maybe = new Maybe(subscribeActual$7);
+  const maybe = new Maybe(subscribeActual$6);
   maybe.source = source;
   maybe.amount = amount;
   maybe.scheduler = sched;
@@ -651,43 +606,27 @@ var delay = (source, amount, scheduler, doDelayError) => {
 /**
  * @ignore
  */
-function subscribeActual$8(observer) {
+function subscribeActual$7(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
   const { amount, scheduler } = this;
-  const controller = new AbortController();
-
-  const { signal } = controller;
+  const controller = new rxCancellable.LinkedCancellable();
 
   onSubscribe(controller);
 
-  if (signal.aborted) {
-    return;
-  }
-
-  const abortable = scheduler.delay(() => {
+  controller.link(scheduler.delay(() => {
+    controller.unlink();
     this.source.subscribeWith({
       onSubscribe(ac) {
-        signal.addEventListener('abort', () => ac.abort());
+        controller.link(ac);
       },
-      onSuccess(x) {
-        onSuccess(x);
-        controller.abort();
-      },
-      onComplete() {
-        onComplete();
-        controller.abort();
-      },
-      onError(x) {
-        onError(x);
-        controller.abort();
-      },
+      onComplete,
+      onSuccess,
+      onError,
     });
-  }, amount);
-
-  signal.addEventListener('abort', () => abortable.abort());
+  }, amount));
 }
 /**
  * @ignore
@@ -700,7 +639,7 @@ var delaySubscription = (source, amount, scheduler) => {
   if (!(sched instanceof Scheduler.interface)) {
     sched = Scheduler.current;
   }
-  const maybe = new Maybe(subscribeActual$8);
+  const maybe = new Maybe(subscribeActual$7);
   maybe.source = source;
   maybe.amount = amount;
   maybe.scheduler = sched;
@@ -710,55 +649,36 @@ var delaySubscription = (source, amount, scheduler) => {
 /**
  * @ignore
  */
-function subscribeActual$9(observer) {
+function subscribeActual$8(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
   const { source, other } = this;
 
-  const controller = new AbortController();
-
-  const { signal } = controller;
+  const controller = new rxCancellable.LinkedCancellable();
 
   onSubscribe(controller);
 
-  if (signal.aborted) {
-    return;
-  }
-
   const success = () => {
-    if (!signal.aborted) {
-      source.subscribeWith({
-        onSubscribe(ac) {
-          signal.addEventListener('abort', () => ac.abort());
-        },
-        onComplete() {
-          onComplete();
-          controller.abort();
-        },
-        onSuccess(x) {
-          onSuccess(x);
-          controller.abort();
-        },
-        onError(x) {
-          onError(x);
-          controller.abort();
-        },
-      });
-    }
+    controller.unlink();
+    source.subscribeWith({
+      onSubscribe(ac) {
+        controller.link(ac);
+      },
+      onComplete,
+      onSuccess,
+      onError,
+    });
   };
 
   other.subscribeWith({
     onSubscribe(ac) {
-      signal.addEventListener('abort', () => ac.abort());
+      controller.link(ac);
     },
     onComplete: success,
     onSuccess: success,
-    onError(x) {
-      onError(x);
-      controller.abort();
-    },
+    onError,
   });
 }
 /**
@@ -768,7 +688,7 @@ var delayUntil = (source, other) => {
   if (!(other instanceof Maybe)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$9);
+  const maybe = new Maybe(subscribeActual$8);
   maybe.source = source;
   maybe.other = other;
   return maybe;
@@ -777,7 +697,7 @@ var delayUntil = (source, other) => {
 /**
  * @ignore
  */
-function subscribeActual$a(observer) {
+function subscribeActual$9(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -803,7 +723,7 @@ var doAfterSuccess = (source, callable) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$a);
+  const maybe = new Maybe(subscribeActual$9);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -812,7 +732,7 @@ var doAfterSuccess = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$b(observer) {
+function subscribeActual$a(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -843,7 +763,7 @@ var doAfterTerminate = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$b);
+  const maybe = new Maybe(subscribeActual$a);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -852,7 +772,7 @@ var doAfterTerminate = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$c(observer) {
+function subscribeActual$b(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -862,7 +782,7 @@ function subscribeActual$c(observer) {
   let called = false;
   source.subscribeWith({
     onSubscribe(ac) {
-      ac.signal.addEventListener('abort', () => {
+      ac.addEventListener('cancel', () => {
         if (!called) {
           callable();
           called = true;
@@ -901,7 +821,7 @@ var doFinally = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$c);
+  const maybe = new Maybe(subscribeActual$b);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -910,7 +830,7 @@ var doFinally = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$d(observer) {
+function subscribeActual$c(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -919,7 +839,7 @@ function subscribeActual$d(observer) {
 
   source.subscribeWith({
     onSubscribe(ac) {
-      ac.signal.addEventListener('abort', callable);
+      ac.addEventListener('cancel', callable);
       onSubscribe(ac);
     },
     onComplete,
@@ -931,11 +851,11 @@ function subscribeActual$d(observer) {
 /**
  * @ignore
  */
-var doOnAbort = (source, callable) => {
+var doOnCancel = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$d);
+  const maybe = new Maybe(subscribeActual$c);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -944,7 +864,7 @@ var doOnAbort = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$e(observer) {
+function subscribeActual$d(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -969,7 +889,7 @@ var doOnComplete = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$e);
+  const maybe = new Maybe(subscribeActual$d);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -978,7 +898,7 @@ var doOnComplete = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$f(observer) {
+function subscribeActual$e(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -1003,7 +923,7 @@ var doOnError = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$f);
+  const maybe = new Maybe(subscribeActual$e);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -1012,7 +932,7 @@ var doOnError = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$g(observer) {
+function subscribeActual$f(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -1043,7 +963,7 @@ var doOnEvent = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$g);
+  const maybe = new Maybe(subscribeActual$f);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -1052,7 +972,7 @@ var doOnEvent = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$h(observer) {
+function subscribeActual$g(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -1077,7 +997,7 @@ var doOnSuccess = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$h);
+  const maybe = new Maybe(subscribeActual$g);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -1086,7 +1006,7 @@ var doOnSuccess = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$i(observer) {
+function subscribeActual$h(observer) {
   const {
     onSuccess, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -1110,7 +1030,7 @@ var doOnSubscribe = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$i);
+  const maybe = new Maybe(subscribeActual$h);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -1119,7 +1039,7 @@ var doOnSubscribe = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$j(observer) {
+function subscribeActual$i(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -1150,7 +1070,7 @@ var doOnTerminate = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$j);
+  const maybe = new Maybe(subscribeActual$i);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -1159,7 +1079,7 @@ var doOnTerminate = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$k(observer) {
+function subscribeActual$j(observer) {
   immediateComplete(observer);
 }
 
@@ -1169,8 +1089,7 @@ let INSTANCE;
  */
 var empty = () => {
   if (typeof INSTANCE === 'undefined') {
-    INSTANCE = new Maybe(subscribeActual$k);
-    INSTANCE.subscribeActual = subscribeActual$k.bind(INSTANCE);
+    INSTANCE = new Maybe(subscribeActual$j);
   }
   return INSTANCE;
 };
@@ -1178,31 +1097,22 @@ var empty = () => {
 /**
  * @ignore
  */
-function subscribeActual$l(observer) {
+function subscribeActual$k(observer) {
   const {
     onSubscribe, onSuccess, onComplete, onError,
   } = cleanObserver(observer);
 
-  const controller = new AbortController();
+  const controller = new rxCancellable.LinkedCancellable();
 
   onSubscribe(controller);
-
-  const { signal } = controller;
-
-  if (signal.aborted) {
-    return;
-  }
 
   const { source, predicate } = this;
 
   source.subscribeWith({
     onSubscribe(ac) {
-      signal.addEventListener('abort', () => ac.abort());
+      controller.link(ac);
     },
-    onComplete() {
-      onComplete();
-      controller.abort();
-    },
+    onComplete,
     onSuccess(x) {
       let result;
 
@@ -1210,7 +1120,7 @@ function subscribeActual$l(observer) {
         result = predicate(x);
       } catch (e) {
         onError(e);
-        controller.abort();
+        controller.cancel();
         return;
       }
 
@@ -1219,12 +1129,9 @@ function subscribeActual$l(observer) {
       } else {
         onComplete();
       }
-      controller.abort();
+      controller.cancel();
     },
-    onError(x) {
-      onError(x);
-      controller.abort();
-    },
+    onError,
   });
 }
 
@@ -1236,7 +1143,7 @@ var filter = (source, predicate) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$l);
+  const maybe = new Maybe(subscribeActual$k);
   maybe.source = source;
   maybe.predicate = predicate;
   return maybe;
@@ -1245,32 +1152,24 @@ var filter = (source, predicate) => {
 /**
  * @ignore
  */
-function subscribeActual$m(observer) {
+function subscribeActual$l(observer) {
   const {
     onSubscribe, onComplete, onError, onSuccess,
   } = cleanObserver(observer);
 
-  const controller = new AbortController();
-
-  const { signal } = controller;
+  const controller = new rxCancellable.LinkedCancellable();
 
   onSubscribe(controller);
-
-  if (signal.aborted) {
-    return;
-  }
 
   const { mapper, source } = this;
 
   source.subscribeWith({
     onSubscribe(ac) {
-      signal.addEventListener('abort', () => ac.abort());
+      controller.link(ac);
     },
-    onComplete() {
-      onComplete();
-      controller.abort();
-    },
+    onComplete,
     onSuccess(x) {
+      controller.unlink();
       let result;
       try {
         result = mapper(x);
@@ -1284,26 +1183,14 @@ function subscribeActual$m(observer) {
       }
       result.subscribeWith({
         onSubscribe(ac) {
-          signal.addEventListener('abort', () => ac.abort());
+          controller.link(ac);
         },
-        onComplete() {
-          onComplete();
-          controller.abort();
-        },
-        onSuccess(v) {
-          onSuccess(v);
-          controller.abort();
-        },
-        onError(v) {
-          onError(v);
-          controller.abort();
-        },
+        onComplete,
+        onSuccess,
+        onError,
       });
     },
-    onError(v) {
-      onError(v);
-      controller.abort();
-    },
+    onError,
   });
 }
 
@@ -1315,9 +1202,38 @@ var flatMap = (source, mapper) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$m);
+  const maybe = new Maybe(subscribeActual$l);
   maybe.source = source;
   maybe.mapper = mapper;
+  return maybe;
+};
+
+/**
+ * @ignore
+ */
+function subscribeActual$m(observer) {
+  const {
+    onSuccess, onComplete, onError, onSubscribe,
+  } = cleanObserver(observer);
+
+  const emitter = new MaybeEmitter(onSuccess, onComplete, onError);
+
+  onSubscribe(emitter);
+
+  this.promise.then(
+    x => (x == null ? emitter.onComplete() : emitter.onSuccess(x)),
+    x => emitter.onError(x),
+  );
+}
+/**
+ * @ignore
+ */
+var fromPromise = (promise) => {
+  if (!isPromise(promise)) {
+    return error(new Error('Maybe.fromPromise: expects a Promise-like value.'));
+  }
+  const maybe = new Maybe(subscribeActual$m);
+  maybe.promise = promise;
   return maybe;
 };
 
@@ -1329,62 +1245,37 @@ function subscribeActual$n(observer) {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
-  const controller = new AbortController();
+  const emitter = new MaybeEmitter(onSuccess, onComplete, onError);
 
-  onSubscribe(controller);
-
-  if (controller.signal.aborted) {
-    return;
-  }
-
-  this.promise.then(
-    x => (x == null ? onComplete() : onSuccess(x)),
-    onError,
-  );
-}
-/**
- * @ignore
- */
-var fromPromise = (promise) => {
-  if (!isPromise(promise)) {
-    return error(new Error('Maybe.fromPromise: expects a Promise-like value.'));
-  }
-  const maybe = new Maybe(subscribeActual$n);
-  maybe.promise = promise;
-  return maybe;
-};
-
-/**
- * @ignore
- */
-function subscribeActual$o(observer) {
-  const obs = cleanObserver(observer);
-  const {
-    onSuccess, onComplete, onError, onSubscribe,
-  } = obs;
-
-  const controller = new AbortController();
-
-  onSubscribe(controller);
-
-  if (controller.signal.aborted) {
-    return;
-  }
+  onSubscribe(emitter);
 
   let result;
   try {
     result = this.callable();
   } catch (e) {
-    onError(e);
+    emitter.onError(e);
     return;
   }
 
   if (isPromise(result)) {
-    fromPromise(result).subscribeWith(obs);
+    fromPromise(result).subscribeWith({
+      onSubscribe(ac) {
+        emitter.setCancellable(ac);
+      },
+      onComplete() {
+        emitter.onComplete();
+      },
+      onSuccess(x) {
+        emitter.onSuccess(x);
+      },
+      onError(e) {
+        emitter.onError(e);
+      },
+    });
   } else if (result == null) {
-    onComplete();
+    emitter.onComplete();
   } else {
-    onSuccess(result);
+    emitter.onSuccess(result);
   }
 }
 /**
@@ -1394,34 +1285,24 @@ var fromCallable = (callable) => {
   if (!isFunction(callable)) {
     return error(new Error('Maybe.fromCallable: callable received is not a function.'));
   }
-  const maybe = new Maybe(subscribeActual$o);
+  const maybe = new Maybe(subscribeActual$n);
   maybe.callable = callable;
   return maybe;
 };
 
-function subscribeActual$p(observer) {
+function subscribeActual$o(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
-  const controller = new AbortController();
+  const emitter = new MaybeEmitter(onSuccess, onComplete, onError);
 
-  onSubscribe(controller);
+  onSubscribe(emitter);
 
-  if (controller.signal.aborted) {
-    return;
-  }
-
-  this.controller = controller;
-  this.onComplete = onComplete;
-  this.onSuccess = onSuccess;
-  this.onError = onError;
-
-  const resolveNone = onCompleteHandler.bind(this);
-  const resolve = onSuccessHandler.bind(this);
-  const reject = onErrorHandler.bind(this);
-
-  this.subscriber(x => (x == null ? resolveNone() : resolve(x)), reject);
+  this.subscriber(
+    x => (x == null ? emitter.onComplete() : emitter.onSuccess(x)),
+    x => emitter.onError(x),
+  );
 }
 /**
  * @ignore
@@ -1430,7 +1311,7 @@ var fromResolvable = (subscriber) => {
   if (!isFunction(subscriber)) {
     return error(new Error('Maybe.fromResolvable: expects a function.'));
   }
-  const maybe = new Maybe(subscribeActual$p);
+  const maybe = new Maybe(subscribeActual$o);
   maybe.subscriber = subscriber;
   return maybe;
 };
@@ -1438,7 +1319,7 @@ var fromResolvable = (subscriber) => {
 /**
  * @ignore
  */
-function subscribeActual$q(observer) {
+function subscribeActual$p(observer) {
   immediateSuccess(observer, this.value);
 }
 /**
@@ -1448,7 +1329,7 @@ var just = (value) => {
   if (value == null) {
     return error(new Error('Maybe.just: received a null value.'));
   }
-  const maybe = new Maybe(subscribeActual$q);
+  const maybe = new Maybe(subscribeActual$p);
   maybe.value = value;
   return maybe;
 };
@@ -1456,7 +1337,7 @@ var just = (value) => {
 /**
  * @ignore
  */
-function subscribeActual$r(observer) {
+function subscribeActual$q(observer) {
   let result;
 
   try {
@@ -1481,7 +1362,7 @@ var lift = (source, operator) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$r);
+  const maybe = new Maybe(subscribeActual$q);
   maybe.source = source;
   maybe.operator = operator;
   return maybe;
@@ -1495,7 +1376,7 @@ const defaultMapper = x => x;
 /**
  * @ignore
  */
-function subscribeActual$s(observer) {
+function subscribeActual$r(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -1530,7 +1411,7 @@ var map = (source, mapper) => {
     ms = defaultMapper;
   }
 
-  const maybe = new Maybe(subscribeActual$s);
+  const maybe = new Maybe(subscribeActual$r);
   maybe.source = source;
   maybe.mapper = ms;
   return maybe;
@@ -1539,56 +1420,36 @@ var map = (source, mapper) => {
 /**
  * @ignore
  */
-function subscribeActual$t(observer) {
+function subscribeActual$s(observer) {
   const {
     onSubscribe, onComplete, onError, onSuccess,
   } = cleanObserver(observer);
 
-  const controller = new AbortController();
-
-  const { signal } = controller;
+  const controller = new rxCancellable.LinkedCancellable();
 
   onSubscribe(controller);
 
-  if (signal.aborted) {
-    return;
-  }
-
   this.source.subscribeWith({
     onSubscribe(ac) {
-      signal.addEventListener('abort', () => ac.abort());
+      controller.link(ac);
     },
-    onComplete() {
-      onComplete();
-      controller.abort();
-    },
+    onComplete,
     onSuccess(x) {
+      controller.unlink();
       let result = x;
       if (!(x instanceof Maybe)) {
         result = error(new Error('Maybe.merge: source emitted a non-Maybe value.'));
       }
       result.subscribeWith({
         onSubscribe(ac) {
-          signal.addEventListener('abort', () => ac.abort());
+          controller.link(ac);
         },
-        onComplete() {
-          onComplete();
-          controller.abort();
-        },
-        onSuccess(v) {
-          onSuccess(v);
-          controller.abort();
-        },
-        onError(v) {
-          onError(v);
-          controller.abort();
-        },
+        onComplete,
+        onSuccess,
+        onError,
       });
     },
-    onError(v) {
-      onError(v);
-      controller.abort();
-    },
+    onError,
   });
 }
 
@@ -1600,48 +1461,38 @@ var merge = (source) => {
     return error(new Error('Maybe.merge: source is not a Maybe.'));
   }
 
-  const maybe = new Maybe(subscribeActual$t);
+  const maybe = new Maybe(subscribeActual$s);
   maybe.source = source;
   return maybe;
 };
 
-function subscribeActual$u(observer) {
+function subscribeActual$t(observer) {
   const {
     onSubscribe, onSuccess, onComplete, onError,
   } = cleanObserver(observer);
 
   const { source, scheduler } = this;
 
-  const controller = new AbortController();
+  const controller = new rxCancellable.LinkedCancellable();
+
   onSubscribe(controller);
-
-  const { signal } = controller;
-
-  if (signal.aborted) {
-    return;
-  }
 
   source.subscribeWith({
     onSubscribe(ac) {
-      signal.addEventListener('abort', () => ac.abort());
+      controller.link(ac);
     },
     onSuccess(x) {
-      scheduler.schedule(() => {
+      controller.link(scheduler.schedule(() => {
         onSuccess(x);
-        controller.abort();
-      });
+      }));
     },
     onComplete() {
-      scheduler.schedule(() => {
-        onComplete();
-        controller.abort();
-      });
+      controller.link(scheduler.schedule(onComplete));
     },
     onError(x) {
-      scheduler.schedule(() => {
+      controller.link(scheduler.schedule(() => {
         onError(x);
-        controller.abort();
-      });
+      }));
     },
   });
 }
@@ -1653,13 +1504,13 @@ var observeOn = (source, scheduler) => {
   if (!(sched instanceof Scheduler.interface)) {
     sched = Scheduler.current;
   }
-  const maybe = new Maybe(subscribeActual$u);
+  const maybe = new Maybe(subscribeActual$t);
   maybe.source = source;
   maybe.scheduler = sched;
   return maybe;
 };
 
-function subscribeActual$v(observer) {
+function subscribeActual$u(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -1694,42 +1545,31 @@ var onErrorComplete = (source, item) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$v);
+  const maybe = new Maybe(subscribeActual$u);
   maybe.source = source;
   maybe.item = item;
   return maybe;
 };
 
-function subscribeActual$w(observer) {
+function subscribeActual$v(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
   const { source, resumeIfError } = this;
 
-  const controller = new AbortController();
-
-  const { signal } = controller;
+  const controller = new rxCancellable.LinkedCancellable();
 
   onSubscribe(controller);
 
-  if (signal.aborted) {
-    return;
-  }
-
   source.subscribeWith({
     onSubscribe(ac) {
-      signal.addEventListener('abort', () => ac.abort());
+      controller.link(ac);
     },
-    onComplete() {
-      onComplete();
-      controller.abort();
-    },
-    onSuccess(x) {
-      onSuccess(x);
-      controller.abort();
-    },
+    onComplete,
+    onSuccess,
     onError(x) {
+      controller.unlink();
       let result;
 
       if (isFunction(resumeIfError)) {
@@ -1748,20 +1588,11 @@ function subscribeActual$w(observer) {
 
       result.subscribeWith({
         onSubscribe(ac) {
-          signal.addEventListener('abort', () => ac.abort());
+          controller.link(ac);
         },
-        onComplete() {
-          onComplete();
-          controller.abort();
-        },
-        onSuccess(v) {
-          onSuccess(v);
-          controller.abort();
-        },
-        onError(v) {
-          onError(v);
-          controller.abort();
-        },
+        onComplete,
+        onSuccess,
+        onError,
       });
     },
   });
@@ -1774,13 +1605,13 @@ var onErrorResumeNext = (source, resumeIfError) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$w);
+  const maybe = new Maybe(subscribeActual$v);
   maybe.source = source;
   maybe.resumeIfError = resumeIfError;
   return maybe;
 };
 
-function subscribeActual$x(observer) {
+function subscribeActual$w(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -1816,13 +1647,13 @@ var onErrorReturn = (source, item) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$x);
+  const maybe = new Maybe(subscribeActual$w);
   maybe.source = source;
   maybe.item = item;
   return maybe;
 };
 
-function subscribeActual$y(observer) {
+function subscribeActual$x(observer) {
   const { onSuccess, onComplete, onSubscribe } = cleanObserver(observer);
 
   const { source, item } = this;
@@ -1844,7 +1675,7 @@ var onErrorReturnItem = (source, item) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$y);
+  const maybe = new Maybe(subscribeActual$x);
   maybe.source = source;
   maybe.item = item;
   return maybe;
@@ -1852,24 +1683,11 @@ var onErrorReturnItem = (source, item) => {
 
 /* eslint-disable class-methods-use-this */
 
-const SIGNAL = {
-  aborted: false,
-  addEventListener: () => {},
-  removeEventListener: () => {},
-  onabort: () => {},
-};
-
-
-const CONTROLLER = {
-  signal: SIGNAL,
-  abort: () => {},
-};
-
 /**
  * @ignore
  */
-function subscribeActual$z(observer) {
-  observer.onSubscribe(CONTROLLER);
+function subscribeActual$y(observer) {
+  observer.onSubscribe(rxCancellable.UNCANCELLED);
 }
 /**
  * @ignore
@@ -1880,8 +1698,7 @@ let INSTANCE$1;
  */
 var never = () => {
   if (typeof INSTANCE$1 === 'undefined') {
-    INSTANCE$1 = new Maybe(subscribeActual$z);
-    INSTANCE$1.subscribeActual = subscribeActual$z.bind(INSTANCE$1);
+    INSTANCE$1 = new Maybe(subscribeActual$y);
   }
   return INSTANCE$1;
 };
@@ -1889,43 +1706,29 @@ var never = () => {
 /**
  * @ignore
  */
-function subscribeActual$A(observer) {
+function subscribeActual$z(observer) {
   const {
     onSubscribe, onComplete, onSuccess, onError,
   } = cleanObserver(observer);
 
-  const controller = new AbortController();
-
-  const { signal } = controller;
+  const controller = new rxCancellable.LinkedCancellable();
 
   onSubscribe(controller);
 
-  if (signal.aborted) {
-    return;
-  }
-
   const { source, bipredicate } = this;
 
-  let retries = 0;
+  let retries = -1;
 
   const sub = () => {
-    if (signal.aborted) {
-      return;
-    }
+    controller.unlink();
     retries += 1;
 
     source.subscribeWith({
       onSubscribe(ac) {
-        signal.addEventListener('abort', () => ac.abort());
+        controller.link(ac);
       },
-      onComplete() {
-        onComplete();
-        controller.abort();
-      },
-      onSuccess(x) {
-        onSuccess(x);
-        controller.abort();
-      },
+      onComplete,
+      onSuccess,
       onError(x) {
         if (isFunction(bipredicate)) {
           const result = bipredicate(retries, x);
@@ -1934,7 +1737,7 @@ function subscribeActual$A(observer) {
             sub();
           } else {
             onError(x);
-            controller.abort();
+            controller.cancel();
           }
         } else {
           sub();
@@ -1950,50 +1753,34 @@ function subscribeActual$A(observer) {
  * @ignore
  */
 var retry = (source, bipredicate) => {
-  const maybe = new Maybe(subscribeActual$A);
+  const maybe = new Maybe(subscribeActual$z);
   maybe.source = source;
   maybe.bipredicate = bipredicate;
   return maybe;
 };
 
-function subscribeActual$B(observer) {
+function subscribeActual$A(observer) {
   const {
     onSubscribe, onSuccess, onComplete, onError,
   } = cleanObserver(observer);
 
   const { source, scheduler } = this;
 
-  const controller = new AbortController();
+  const controller = new rxCancellable.LinkedCancellable();
+
   onSubscribe(controller);
 
-  const { signal } = controller;
-
-  if (signal.aborted) {
-    return;
-  }
-
-  scheduler.schedule(() => {
-    if (signal.aborted) {
-      return;
-    }
+  controller.link(scheduler.schedule(() => {
+    controller.unlink();
     source.subscribeWith({
       onSubscribe(ac) {
-        signal.addEventListener('abort', () => ac.abort());
+        controller.link(ac);
       },
-      onSuccess(x) {
-        onSuccess(x);
-        controller.abort();
-      },
-      onComplete() {
-        onComplete();
-        controller.abort();
-      },
-      onError(x) {
-        onError(x);
-        controller.abort();
-      },
+      onComplete,
+      onSuccess,
+      onError,
     });
-  });
+  }));
 }
 /**
  * @ignore
@@ -2003,60 +1790,40 @@ var subscribeOn = (source, scheduler) => {
   if (!(sched instanceof Scheduler.interface)) {
     sched = Scheduler.current;
   }
-  const maybe = new Maybe(subscribeActual$B);
+  const maybe = new Maybe(subscribeActual$A);
   maybe.source = source;
   maybe.scheduler = sched;
   return maybe;
 };
 
-function subscribeActual$C(observer) {
+function subscribeActual$B(observer) {
   const {
     onSubscribe, onSuccess, onComplete, onError,
   } = cleanObserver(observer);
 
-  const controller = new AbortController();
+  const controller = new rxCancellable.LinkedCancellable();
 
   onSubscribe(controller);
-
-  const { signal } = controller;
-
-  if (signal.aborted) {
-    return;
-  }
 
   const { source, other } = this;
 
   source.subscribeWith({
     onSubscribe(ac) {
-      signal.addEventListener('abort', () => ac.abort());
-    },
-    onSuccess(x) {
-      onSuccess(x);
-      controller.abort();
+      controller.link(ac);
     },
     onComplete() {
+      controller.unlink();
       other.subscribeWith({
         onSubscribe(ac) {
-          signal.addEventListener('abort', () => ac.abort());
+          controller.link(ac);
         },
-        onSuccess(x) {
-          onSuccess(x);
-          controller.abort();
-        },
-        onComplete() {
-          onComplete();
-          controller.abort();
-        },
-        onError(x) {
-          onError(x);
-          controller.abort();
-        },
+        onComplete,
+        onSuccess,
+        onError,
       });
     },
-    onError(x) {
-      onError(x);
-      controller.abort();
-    },
+    onSuccess,
+    onError,
   });
 }
 
@@ -2068,7 +1835,7 @@ var switchIfEmpty = (source, other) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$C);
+  const maybe = new Maybe(subscribeActual$B);
   maybe.source = source;
   maybe.other = other;
 
@@ -2078,60 +1845,50 @@ var switchIfEmpty = (source, other) => {
 /**
  * @ignore
  */
-function subscribeActual$D(observer) {
+function subscribeActual$C(observer) {
   const {
     onSubscribe, onComplete, onSuccess, onError,
   } = cleanObserver(observer);
 
-  const controller = new AbortController();
-
-  const { signal } = controller;
+  const controller = new rxCancellable.CompositeCancellable();
 
   onSubscribe(controller);
-
-  if (signal.aborted) {
-    return;
-  }
 
   const { source, other } = this;
 
   other.subscribeWith({
     onSubscribe(ac) {
-      signal.addEventListener('abort', () => ac.abort());
+      controller.add(ac);
     },
     onComplete() {
       onError(new Error('Maybe.takeUntil: Source cancelled by other Maybe.'));
-      controller.abort();
+      controller.cancel();
     },
     onSuccess() {
       onError(new Error('Maybe.takeUntil: Source cancelled by other Maybe.'));
-      controller.abort();
+      controller.cancel();
     },
     onError(x) {
       onError(new Error(['Maybe.takeUntil: Source cancelled by other Maybe.', x]));
-      controller.abort();
+      controller.cancel();
     },
   });
 
   source.subscribeWith({
     onSubscribe(ac) {
-      if (signal.aborted) {
-        ac.abort();
-      } else {
-        signal.addEventListener('abort', () => ac.abort());
-      }
+      controller.add(ac);
     },
     onComplete() {
       onComplete();
-      controller.abort();
+      controller.cancel();
     },
     onSuccess(x) {
       onSuccess(x);
-      controller.abort();
+      controller.cancel();
     },
     onError(x) {
       onError(x);
-      controller.abort();
+      controller.cancel();
     },
   });
 }
@@ -2144,7 +1901,7 @@ const takeUntil = (source, other) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$D);
+  const maybe = new Maybe(subscribeActual$C);
   maybe.source = source;
   maybe.other = other;
   return maybe;
@@ -2153,22 +1910,10 @@ const takeUntil = (source, other) => {
 /**
  * @ignore
  */
-function subscribeActual$E(observer) {
+function subscribeActual$D(observer) {
   const { onSuccess, onSubscribe } = cleanObserver(observer);
 
-  const controller = new AbortController();
-
-  const { signal } = controller;
-
-  onSubscribe(controller);
-
-  if (signal.aborted) {
-    return;
-  }
-
-  const timeout = this.scheduler.delay(() => onSuccess(0), this.amount);
-
-  signal.addEventListener('abort', () => timeout.abort());
+  onSubscribe(this.scheduler.delay(() => onSuccess(0), this.amount));
 }
 /**
  * @ignore
@@ -2182,7 +1927,7 @@ var timer = (amount, scheduler) => {
   if (!(sched instanceof Scheduler.interface)) {
     sched = Scheduler.current;
   }
-  const maybe = new Maybe(subscribeActual$E);
+  const maybe = new Maybe(subscribeActual$D);
   maybe.amount = amount;
   maybe.scheduler = sched;
   return maybe;
@@ -2191,49 +1936,34 @@ var timer = (amount, scheduler) => {
 /**
  * @ignore
  */
-function subscribeActual$F(observer) {
+function subscribeActual$E(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
   const { amount, scheduler } = this;
 
-  const controller = new AbortController();
-
-  const { signal } = controller;
+  const controller = new rxCancellable.LinkedCancellable();
 
   onSubscribe(controller);
-
-  if (signal.aborted) {
-    return;
-  }
 
   const timeout = scheduler.delay(
     () => {
       onError(new Error('Maybe.timeout: TimeoutException (no success signals within the specified timeout).'));
-      controller.abort();
+      controller.cancel();
     },
     amount,
   );
 
-  signal.addEventListener('abort', () => timeout.abort());
+  controller.addEventListener('cancel', () => timeout.cancel());
 
   this.source.subscribeWith({
     onSubscribe(ac) {
-      signal.addEventListener('abort', () => ac.abort());
+      controller.link(ac);
     },
-    onSuccess(x) {
-      onSuccess(x);
-      controller.abort();
-    },
-    onComplete() {
-      onComplete();
-      controller.abort();
-    },
-    onError(x) {
-      onError(x);
-      controller.abort();
-    },
+    onComplete,
+    onSuccess,
+    onError,
   });
 }
 /**
@@ -2247,7 +1977,7 @@ var timeout = (source, amount, scheduler) => {
   if (!(sched instanceof Scheduler.interface)) {
     sched = Scheduler.current;
   }
-  const maybe = new Maybe(subscribeActual$F);
+  const maybe = new Maybe(subscribeActual$E);
   maybe.source = source;
   maybe.amount = amount;
   maybe.scheduler = sched;
@@ -2260,22 +1990,16 @@ const defaultZipper = x => x;
 /**
  * @ignore
  */
-function subscribeActual$G(observer) {
+function subscribeActual$F(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
   const result = [];
 
-  const controller = new AbortController();
-
-  const { signal } = controller;
+  const controller = new rxCancellable.CompositeCancellable();
 
   onSubscribe(controller);
-
-  if (signal.aborted) {
-    return;
-  }
 
   const { sources, zipper } = this;
 
@@ -2283,30 +2007,24 @@ function subscribeActual$G(observer) {
 
   if (size === 0) {
     onError(new Error('Maybe.zip: empty iterable'));
-    controller.abort();
+    controller.cancel();
     return;
   }
   let pending = size;
 
   for (let i = 0; i < size; i += 1) {
-    if (signal.aborted) {
-      return;
-    }
     const maybe = sources[i];
 
     if (maybe instanceof Maybe) {
       maybe.subscribeWith({
         onSubscribe(ac) {
-          signal.addEventListener('abort', () => ac.abort());
+          controller.add(ac);
         },
         onComplete() {
           onComplete();
-          controller.abort();
+          controller.cancel();
         },
         onSuccess(x) {
-          if (signal.aborted) {
-            return;
-          }
           result[i] = x;
           pending -= 1;
           if (pending === 0) {
@@ -2318,16 +2036,16 @@ function subscribeActual$G(observer) {
               }
             } catch (e) {
               onError(e);
-              controller.abort();
+              controller.cancel();
               return;
             }
             onSuccess(r);
-            controller.abort();
+            controller.cancel();
           }
         },
         onError(x) {
           onError(x);
-          controller.abort();
+          controller.cancel();
         },
       });
     } else if (maybe != null) {
@@ -2335,7 +2053,7 @@ function subscribeActual$G(observer) {
       pending -= 1;
     } else {
       onError(new Error('Maybe.zip: One of the sources is undefined.'));
-      controller.abort();
+      controller.cancel();
       break;
     }
   }
@@ -2351,7 +2069,7 @@ var zip = (sources, zipper) => {
   if (!isFunction(zipper)) {
     fn = defaultZipper;
   }
-  const maybe = new Maybe(subscribeActual$G);
+  const maybe = new Maybe(subscribeActual$F);
   maybe.sources = sources;
   maybe.zipper = fn;
   return maybe;
@@ -2360,126 +2078,11 @@ var zip = (sources, zipper) => {
 /**
  * @ignore
  */
-const defaultZipper$1 = (x, y) => [x, y];
-/**
- * @ignore
- */
-function subscribeActual$H(observer) {
-  const {
-    onSuccess, onComplete, onError, onSubscribe,
-  } = cleanObserver(observer);
-
-  let SA;
-  let SB;
-
-  const controller = new AbortController();
-
-  const { signal } = controller;
-
-  onSubscribe(controller);
-
-  if (signal.aborted) {
-    return;
-  }
-
-  const { source, other, zipper } = this;
-
-  source.subscribeWith({
-    onSubscribe(ac) {
-      signal.addEventListener('abort', () => ac.abort());
-    },
-    onComplete() {
-      onComplete();
-      controller.abort();
-    },
-    onSuccess(x) {
-      if (signal.aborted) {
-        return;
-      }
-      SA = x;
-
-      if (SB != null) {
-        let result;
-
-        try {
-          result = zipper(SA, SB);
-
-          if (result == null) {
-            throw new Error('Maybe.zipWith: zipper function returned a null value.');
-          }
-        } catch (e) {
-          onError(e);
-          controller.abort();
-          return;
-        }
-        onSuccess(result);
-        controller.abort();
-      }
-    },
-    onError(x) {
-      onError(x);
-      controller.abort();
-    },
-  });
-
-  other.subscribeWith({
-    onSubscribe(ac) {
-      if (signal.aborted) {
-        ac.abort();
-      } else {
-        signal.addEventListener('abort', () => ac.abort());
-      }
-    },
-    onComplete() {
-      onComplete();
-      controller.abort();
-    },
-    onSuccess(x) {
-      if (signal.aborted) {
-        return;
-      }
-      SB = x;
-
-      if (SA != null) {
-        let result;
-
-        try {
-          result = zipper(SA, SB);
-
-          if (result == null) {
-            throw new Error('Maybe.zipWith: zipper function returned a null value.');
-          }
-        } catch (e) {
-          onError(e);
-          controller.abort();
-          return;
-        }
-        onSuccess(result);
-        controller.abort();
-      }
-    },
-    onError(x) {
-      onError(x);
-      controller.abort();
-    },
-  });
-}
-/**
- * @ignore
- */
 var zipWith = (source, other, zipper) => {
   if (!(other instanceof Maybe)) {
     return source;
   }
-  let fn = zipper;
-  if (!isFunction(zipper)) {
-    fn = defaultZipper$1;
-  }
-  const maybe = new Maybe(subscribeActual$H);
-  maybe.source = source;
-  maybe.other = other;
-  maybe.zipper = fn;
-  return maybe;
+  return zip([source, other], zipper);
 };
 
 /* eslint-disable import/no-cycle */
@@ -2525,8 +2128,8 @@ var zipWith = (source, other, zipper) => {
  * Note that onSuccess, onError and onComplete are mutually exclusive events;
  * unlike Observable, onSuccess is never followed by onError or onComplete.
  *
- * Like Observable, a running Maybe can be stopped through the AbortController instance
- * provided to consumers through Observer.onSubscribe(AbortController).
+ * Like Observable, a running Maybe can be stopped through the Cancellable instance
+ * provided to consumers through Observer.onSubscribe(Cancellable).
  *
  * Like an Observable, a Maybe is lazy, can be either "hot" or "cold", synchronous or
  * asynchronous.
@@ -2732,13 +2335,13 @@ class Maybe {
 
   /**
    * Calls the specified action after this Maybe signals onSuccess,
-   * onError or onComplete or gets aborted by the downstream.
+   * onError or onComplete or gets cancelled by the downstream.
    *
-   * In case of a race between a terminal event and a abort call,
+   * In case of a race between a terminal event and a cancel call,
    * the provided onFinally action is executed once per subscription.
    *
    * @param {!function} action
-   * the action called when this Maybe terminates or gets aborted
+   * the action called when this Maybe terminates or gets cancelled
    * @returns {Maybe}
    */
   doFinally(action) {
@@ -2747,14 +2350,14 @@ class Maybe {
 
   /**
    * Calls the shared action if an Observer subscribed to the current
-   * Maybe aborts the common AbortController it received via onSubscribe.
+   * Maybe cancels the common Cancellable it received via onSubscribe.
    *
    * @param {!function} action
-   * the action called when the subscription is aborted
+   * the action called when the subscription is cancelled
    * @returns {Maybe}
    */
-  doOnAbort(action) {
-    return doOnAbort(this, action);
+  doOnCancel(action) {
+    return doOnCancel(this, action);
   }
 
   /**
@@ -2793,11 +2396,11 @@ class Maybe {
   }
 
   /**
-   * Calls the shared consumer with the AbortController sent through
+   * Calls the shared consumer with the Cancellable sent through
    * the onSubscribe for each Observer that subscribes to the current Maybe.
    *
-   * @param {!function(ac: AbortController)} consumer
-   * the consumer called with the AbortController sent via onSubscribe
+   * @param {!function(ac: Cancellable)} consumer
+   * the consumer called with the Cancellable sent via onSubscribe
    * @returns {Maybe}
    */
   doOnSubscribe(consumer) {
@@ -2953,7 +2556,7 @@ class Maybe {
    * and forwards the onSuccess, onError and onComplete events from the
    * upstream directly or according to the emission pattern the custom
    * operator's business logic requires. In addition, such operator can
-   * intercept the flow control calls of abort and signal.aborted that
+   * intercept the flow control calls of cancel and signal.cancelled that
    * would have traveled upstream and perform additional actions
    * depending on the same business logic requirements.
    *
@@ -3185,7 +2788,7 @@ class Maybe {
    * given function to those values and emits the function's resulting value to downstream.
    *
    * If either this or the other Maybe is empty or signals an error,
-   * the resulting Maybe will terminate immediately and abort the other source.
+   * the resulting Maybe will terminate immediately and cancel the other source.
    *
    * @param {Maybe} other
    * the other Maybe
@@ -3210,7 +2813,7 @@ class Maybe {
    *
    * The onSubscribe method is called when subscribeWith
    * or subscribe is executed. This method receives an
-   * AbortController instance.
+   * Cancellable instance.
    *
    * @param {!Object} observer
    * @returns {undefined}
@@ -3239,30 +2842,14 @@ class Maybe {
    * @param {?function(x: any)} onError
    * the function you have designed to accept any error
    * notification from the Maybe
-   * @returns {AbortController}
-   * an AbortController reference can request the Maybe to abort.
+   * @returns {Cancellable}
+   * an Cancellable reference can request the Maybe to cancel.
    */
   subscribe(onSuccess, onComplete, onError) {
-    const controller = new AbortController();
-    let once = false;
+    const controller = new rxCancellable.LinkedCancellable();
     this.subscribeWith({
       onSubscribe(ac) {
-        ac.signal.addEventListener('abort', () => {
-          if (!once) {
-            once = true;
-            if (!controller.signal.aborted) {
-              controller.abort();
-            }
-          }
-        });
-        controller.signal.addEventListener('abort', () => {
-          if (!once) {
-            once = true;
-            if (!ac.signal.aborted) {
-              ac.abort();
-            }
-          }
-        });
+        controller.link(ac);
       },
       onComplete,
       onSuccess,
@@ -3308,17 +2895,29 @@ class Maybe {
 }
 
 /**
- * @interface
- * Represents an object that receives notification to
- * an Observer.
+ * Provides a mechanism for receiving push-based notification of a single value,
+ * an error or completion without any value.
  *
- * Emitter is an abstraction layer of the Observer
- */
-
-/**
+ * When a MaybeObserver is subscribed to a Maybe through the Maybe.subscribeWith(MaybeObserver)
+ * method, the Maybe calls onSubscribe(Cancellable) with a Cancellable that allows
+ * cancelling the sequence at any time. A well-behaved Maybe will call a MaybeObserver's
+ * onSuccess(Object), onError(Error) or onComplete() method exactly once as they
+ * are considered mutually exclusive terminal signals.
+ *
+ * the invocation pattern must adhere to the following protocol:
+ *
+ * <code>onSubscribe (onSuccess | onError | onComplete)?</code>
+ *
+ * Note that unlike with the Observable protocol, onComplete() is not called after
+ * the success item has been signalled via onSuccess(Object).
+ *
+ * Subscribing a MaybeObserver to multiple Maybes is not recommended. If such reuse
+ * happens, it is the duty of the MaybeObserver implementation to be ready to receive
+ * multiple calls to its methods and ensure proper concurrent behavior of its business logic.
+ *
+ * Calling onSubscribe(Cancellable), onSuccess(Object) or onError(Error) with a null
+ * argument is forbidden.
  * @interface
- * Represents an object that receives notification from
- * an Emitter.
  */
 
 /* eslint-disable no-unused-vars */

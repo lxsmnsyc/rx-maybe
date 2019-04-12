@@ -1,4 +1,4 @@
-import AbortController from 'abort-controller';
+import { CompositeCancellable } from 'rx-cancellable';
 import Maybe from '../../maybe';
 import { cleanObserver } from '../utils';
 
@@ -10,55 +10,45 @@ function subscribeActual(observer) {
     onSubscribe, onComplete, onSuccess, onError,
   } = cleanObserver(observer);
 
-  const controller = new AbortController();
-
-  const { signal } = controller;
+  const controller = new CompositeCancellable();
 
   onSubscribe(controller);
-
-  if (signal.aborted) {
-    return;
-  }
 
   const { source, other } = this;
 
   other.subscribeWith({
     onSubscribe(ac) {
-      signal.addEventListener('abort', () => ac.abort());
+      controller.add(ac);
     },
     onComplete() {
       onError(new Error('Maybe.takeUntil: Source cancelled by other Maybe.'));
-      controller.abort();
+      controller.cancel();
     },
     onSuccess() {
       onError(new Error('Maybe.takeUntil: Source cancelled by other Maybe.'));
-      controller.abort();
+      controller.cancel();
     },
     onError(x) {
       onError(new Error(['Maybe.takeUntil: Source cancelled by other Maybe.', x]));
-      controller.abort();
+      controller.cancel();
     },
   });
 
   source.subscribeWith({
     onSubscribe(ac) {
-      if (signal.aborted) {
-        ac.abort();
-      } else {
-        signal.addEventListener('abort', () => ac.abort());
-      }
+      controller.add(ac);
     },
     onComplete() {
       onComplete();
-      controller.abort();
+      controller.cancel();
     },
     onSuccess(x) {
       onSuccess(x);
-      controller.abort();
+      controller.cancel();
     },
     onError(x) {
       onError(x);
-      controller.abort();
+      controller.cancel();
     },
   });
 }

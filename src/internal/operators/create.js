@@ -1,9 +1,7 @@
-import AbortController from 'abort-controller';
-import {
-  onErrorHandler, onSuccessHandler, cleanObserver, onCompleteHandler, isFunction,
-} from '../utils';
+import { cleanObserver } from '../utils';
 import Maybe from '../../maybe';
 import error from './error';
+import MaybeEmitter from '../../emitter';
 
 /**
  * @ignore
@@ -13,15 +11,7 @@ function subscribeActual(observer) {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
-  const emitter = new AbortController();
-  emitter.onComplete = onCompleteHandler.bind(this);
-  emitter.onSuccess = onSuccessHandler.bind(this);
-  emitter.onError = onErrorHandler.bind(this);
-
-  this.controller = emitter;
-  this.onComplete = onComplete;
-  this.onSuccess = onSuccess;
-  this.onError = onError;
+  const emitter = new MaybeEmitter(onSuccess, onComplete, onError);
 
   onSubscribe(emitter);
 
@@ -35,7 +25,7 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (subscriber) => {
-  if (!isFunction(subscriber)) {
+  if (typeof subscriber !== 'function') {
     return error(new Error('Maybe.create: There are no subscribers.'));
   }
   const maybe = new Maybe(subscribeActual);

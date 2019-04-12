@@ -111,7 +111,7 @@ describe('#zipWith', () => {
   /**
    *
    */
-  it('should not signal success if aborted.', (done) => {
+  it('should not signal success if cancelled.', (done) => {
     const source = Maybe.just('Hello').delay(100).zipWith(Maybe.just('World'));
     const controller = source.subscribe(
       () => done(false),
@@ -119,8 +119,8 @@ describe('#zipWith', () => {
       () => done(false),
     );
 
-    controller.abort();
-    if (controller.signal.aborted) {
+    controller.cancel();
+    if (controller.cancelled) {
       done();
     }
   });

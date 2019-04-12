@@ -68,7 +68,7 @@ describe('#delayUntil', () => {
   /**
    *
    */
-  it('should not signal success if aborted.', (done) => {
+  it('should not signal success if cancelled.', (done) => {
     const source = Maybe.just('Hello').delayUntil(Maybe.timer(100));
     const controller = source.subscribe(
       () => done(false),
@@ -76,15 +76,15 @@ describe('#delayUntil', () => {
       () => done(false),
     );
 
-    controller.abort();
-    if (controller.signal.aborted) {
+    controller.cancel();
+    if (controller.cancelled) {
       done();
     }
   });
   /**
    *
    */
-  it('should not signal complete if aborted.', (done) => {
+  it('should not signal complete if cancelled.', (done) => {
     const source = Maybe.empty().delayUntil(Maybe.timer(100));
     const controller = source.subscribe(
       () => done(false),
@@ -92,15 +92,15 @@ describe('#delayUntil', () => {
       () => done(false),
     );
 
-    controller.abort();
-    if (controller.signal.aborted) {
+    controller.cancel();
+    if (controller.cancelled) {
       done();
     }
   });
   /**
    *
    */
-  it('should not signal error if aborted.', (done) => {
+  it('should not signal error if cancelled.', (done) => {
     const source = Maybe.error(new Error('Hello')).delayUntil(Maybe.timer(100));
     const controller = source.subscribe(
       () => done(false),
@@ -108,8 +108,8 @@ describe('#delayUntil', () => {
       () => done(false),
     );
 
-    controller.abort();
-    if (controller.signal.aborted) {
+    controller.cancel();
+    if (controller.cancelled) {
       done();
     }
   });

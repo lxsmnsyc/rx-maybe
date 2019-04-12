@@ -1,9 +1,9 @@
-import AbortController from 'abort-controller';
 import Maybe from '../../maybe';
 import {
   isPromise, cleanObserver,
 } from '../utils';
 import error from './error';
+import MaybeEmitter from '../../emitter';
 /**
  * @ignore
  */
@@ -12,17 +12,13 @@ function subscribeActual(observer) {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
-  const controller = new AbortController();
+  const emitter = new MaybeEmitter(onSuccess, onComplete, onError);
 
-  onSubscribe(controller);
-
-  if (controller.signal.aborted) {
-    return;
-  }
+  onSubscribe(emitter);
 
   this.promise.then(
-    x => (x == null ? onComplete() : onSuccess(x)),
-    onError,
+    x => (x == null ? emitter.onComplete() : emitter.onSuccess(x)),
+    x => emitter.onError(x),
   );
 }
 /**

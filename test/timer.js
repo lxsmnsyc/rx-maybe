@@ -39,7 +39,7 @@ describe('#timer', () => {
   /**
    *
    */
-  it('should not signal success if aborted.', (done) => {
+  it('should not signal success if cancelled.', (done) => {
     const maybe = Maybe.timer(100);
     const controller = maybe.subscribe(
       () => done(false),
@@ -48,8 +48,8 @@ describe('#timer', () => {
     );
 
 
-    controller.abort();
-    if (controller.signal.aborted) {
+    controller.cancel();
+    if (controller.cancelled) {
       done();
     }
   });

@@ -12,3 +12,4 @@ test
 appveyor.yml
 .nvmrc
 .github
+.git

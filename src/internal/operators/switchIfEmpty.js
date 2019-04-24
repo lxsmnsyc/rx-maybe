@@ -1,6 +1,7 @@
 import { LinkedCancellable } from 'rx-cancellable';
 import { cleanObserver } from '../utils';
 import Maybe from '../../maybe';
+import is from '../is';
 
 function subscribeActual(observer) {
   const {
@@ -37,7 +38,7 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (source, other) => {
-  if (!(other instanceof Maybe)) {
+  if (!is(other)) {
     return source;
   }
 

@@ -1,5 +1,5 @@
 import Maybe from '../../maybe';
-import { cleanObserver, isFunction } from '../utils';
+import { cleanObserver, isFunction, isNull } from '../utils';
 
 function subscribeActual(observer) {
   const {
@@ -21,7 +21,7 @@ function subscribeActual(observer) {
         onError([x, e]);
         return;
       }
-      if (result == null) {
+      if (isNull(result)) {
         onComplete();
       } else {
         onSuccess(result);

@@ -2,6 +2,7 @@ import { LinkedCancellable } from 'rx-cancellable';
 import Maybe from '../../maybe';
 import error from './error';
 import { cleanObserver } from '../utils';
+import is from '../is';
 
 /**
  * @ignore
@@ -23,7 +24,7 @@ function subscribeActual(observer) {
     onSuccess(x) {
       controller.unlink();
       let result = x;
-      if (!(x instanceof Maybe)) {
+      if (!is(x)) {
         result = error(new Error('Maybe.merge: source emitted a non-Maybe value.'));
       }
       result.subscribeWith({
@@ -43,7 +44,7 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (source) => {
-  if (!(source instanceof Maybe)) {
+  if (!is(source)) {
     return error(new Error('Maybe.merge: source is not a Maybe.'));
   }
 

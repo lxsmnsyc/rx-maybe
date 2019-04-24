@@ -1,6 +1,6 @@
 import Maybe from '../../maybe';
 import {
-  isPromise, cleanObserver,
+  isPromise, cleanObserver, isNull,
 } from '../utils';
 import error from './error';
 import MaybeEmitter from '../../emitter';
@@ -17,7 +17,7 @@ function subscribeActual(observer) {
   onSubscribe(emitter);
 
   this.promise.then(
-    x => (x == null ? emitter.onComplete() : emitter.onSuccess(x)),
+    x => (isNull(x) ? emitter.onComplete() : emitter.onSuccess(x)),
     x => emitter.onError(x),
   );
 }

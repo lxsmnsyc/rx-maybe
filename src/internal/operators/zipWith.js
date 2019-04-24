@@ -1,12 +1,13 @@
-import Maybe from '../../maybe';
-import zip from './zip';
+
+import zipArray from './zipArray';
+import is from '../is';
 
 /**
  * @ignore
  */
 export default (source, other, zipper) => {
-  if (!(other instanceof Maybe)) {
+  if (!is(other)) {
     return source;
   }
-  return zip([source, other], zipper);
+  return zipArray([source, other], zipper);
 };

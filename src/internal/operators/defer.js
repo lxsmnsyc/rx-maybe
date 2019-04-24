@@ -1,5 +1,6 @@
 import Maybe from '../../maybe';
-import { immediateError, cleanObserver } from '../utils';
+import { immediateError, cleanObserver, exists } from '../utils';
+import is from '../is';
 
 /**
  * @ignore
@@ -14,14 +15,14 @@ function subscribeActual(observer) {
   let err;
   try {
     result = this.supplier();
-    if (!(result instanceof Maybe)) {
+    if (!is(result)) {
       throw new Error('Maybe.defer: supplier returned a non-Maybe.');
     }
   } catch (e) {
     err = e;
   }
 
-  if (err != null) {
+  if (exists(err)) {
     immediateError(observer, err);
   } else {
     result.subscribeWith({

@@ -1,6 +1,6 @@
 import { BooleanCancellable } from 'rx-cancellable';
 import Maybe from '../../maybe';
-import { cleanObserver } from '../utils';
+import { cleanObserver, exists } from '../utils';
 
 /**
  * @ignore
@@ -70,9 +70,9 @@ function subscribeActual(observer) {
     onSubscribe(controller);
 
     const { value, error } = this;
-    if (value != null) {
+    if (exists(value)) {
       onSuccess(value);
-    } else if (error != null) {
+    } else if (exists(error)) {
       onError(error);
     } else {
       onComplete();

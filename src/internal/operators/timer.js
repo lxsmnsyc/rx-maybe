@@ -1,6 +1,6 @@
 import Scheduler from 'rx-scheduler';
 import Maybe from '../../maybe';
-import { cleanObserver, isNumber } from '../utils';
+import { cleanObserver, isNumber, isOf } from '../utils';
 import error from './error';
 
 /**
@@ -20,7 +20,7 @@ export default (amount, scheduler) => {
   }
 
   let sched = scheduler;
-  if (!(sched instanceof Scheduler.interface)) {
+  if (!isOf(sched, Scheduler.interface)) {
     sched = Scheduler.current;
   }
   const maybe = new Maybe(subscribeActual);

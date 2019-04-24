@@ -1,10 +1,5 @@
 import Maybe from '../../maybe';
-import { cleanObserver, isFunction } from '../utils';
-
-/**
- * @ignore
- */
-const defaultMapper = x => x;
+import { cleanObserver, isFunction, isNull } from '../utils';
 
 /**
  * @ignore
@@ -22,7 +17,7 @@ function subscribeActual(observer) {
       let result;
       try {
         result = mapper(x);
-        if (result == null) {
+        if (isNull(result)) {
           throw new Error('Maybe.map: mapper function returned a null value.');
         }
       } catch (e) {
@@ -39,13 +34,12 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (source, mapper) => {
-  let ms = mapper;
   if (!isFunction(mapper)) {
-    ms = defaultMapper;
+    return source;
   }
 
   const maybe = new Maybe(subscribeActual);
   maybe.source = source;
-  maybe.mapper = ms;
+  maybe.mapper = mapper;
   return maybe;
 };

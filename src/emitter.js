@@ -1,10 +1,6 @@
 import { Cancellable, BooleanCancellable } from 'rx-cancellable';
 
 /**
- * @ignore
- */
-const LINK = new WeakMap();
-/**
  * Abstraction over a MaybeObserver that allows associating
  * a resource with it.
  *
@@ -14,6 +10,9 @@ const LINK = new WeakMap();
  */
 // eslint-disable-next-line no-unused-vars
 export default class MaybeEmitter extends Cancellable {
+  /**
+   * @ignore
+   */
   constructor(success, complete, error) {
     super();
     /**
@@ -28,8 +27,10 @@ export default class MaybeEmitter extends Cancellable {
      * @ignore
      */
     this.error = error;
-
-    LINK.set(this, new BooleanCancellable());
+    /**
+     * @ignore
+     */
+    this.linked = new BooleanCancellable();
   }
 
   /**
@@ -37,7 +38,7 @@ export default class MaybeEmitter extends Cancellable {
    * @returns {boolean}
    */
   get cancelled() {
-    return LINK.get(this).cancelled;
+    return this.linked.cancelled;
   }
 
   /**
@@ -45,7 +46,7 @@ export default class MaybeEmitter extends Cancellable {
    * @returns {boolean}
    */
   cancel() {
-    return LINK.get(this).cancel();
+    return this.linked.cancel();
   }
 
   /**
@@ -63,9 +64,9 @@ export default class MaybeEmitter extends Cancellable {
         this.cancel();
         return true;
       } else {
-        const link = LINK.get(this);
-        LINK.set(this, cancellable);
-        link.cancel();
+        const { linked } = this;
+        this.linked = cancellable;
+        linked.cancel();
         return true;
       }
     }

@@ -1,6 +1,6 @@
 import Maybe from '../../maybe';
 import error from './error';
-import { immediateSuccess } from '../utils';
+import { immediateSuccess, isNull } from '../utils';
 
 /**
  * @ignore
@@ -12,7 +12,7 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (value) => {
-  if (value == null) {
+  if (isNull(value)) {
     return error(new Error('Maybe.just: received a null value.'));
   }
   const maybe = new Maybe(subscribeActual);

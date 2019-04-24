@@ -1,4 +1,4 @@
-import { cleanObserver } from '../utils';
+import { cleanObserver, isFunction } from '../utils';
 import Maybe from '../../maybe';
 import error from './error';
 import MaybeEmitter from '../../emitter';
@@ -25,7 +25,7 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (subscriber) => {
-  if (typeof subscriber !== 'function') {
+  if (!isFunction(subscriber)) {
     return error(new Error('Maybe.create: There are no subscribers.'));
   }
   const maybe = new Maybe(subscribeActual);

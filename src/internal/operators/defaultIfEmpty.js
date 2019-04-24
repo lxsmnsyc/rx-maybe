@@ -1,5 +1,5 @@
 import { LinkedCancellable } from 'rx-cancellable';
-import { cleanObserver } from '../utils';
+import { cleanObserver, isNull } from '../utils';
 import Maybe from '../../maybe';
 
 function subscribeActual(observer) {
@@ -29,7 +29,7 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (source, value) => {
-  if (value == null) {
+  if (isNull(value)) {
     return source;
   }
 

@@ -1,6 +1,7 @@
 import { LinkedCancellable } from 'rx-cancellable';
 import Maybe from '../../maybe';
-import { cleanObserver, isFunction } from '../utils';
+import { cleanObserver, isFunction, isNull } from '../utils';
+import is from '../is';
 
 function subscribeActual(observer) {
   const {
@@ -26,11 +27,12 @@ function subscribeActual(observer) {
       if (isFunction(resumeIfError)) {
         try {
           result = resumeIfError(x);
-          if (result == null) {
+          if (isNull(result)) {
             throw new Error('Maybe.onErrorResumeNext: returned an non-Maybe.');
           }
         } catch (e) {
           onError(new Error([x, e]));
+          controller.cancel();
           return;
         }
       } else {
@@ -52,7 +54,7 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (source, resumeIfError) => {
-  if (!(isFunction(resumeIfError) || resumeIfError instanceof Maybe)) {
+  if (!(isFunction(resumeIfError) || is(resumeIfError))) {
     return source;
   }
 

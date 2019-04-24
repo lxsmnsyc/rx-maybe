@@ -25,6 +25,22 @@ const isObject = x => isType(x, 'object');
 /**
  * @ignore
  */
+const isNull = x => x == null;
+/**
+ * @ignore
+ */
+const exists = x => x != null;
+/**
+ * @ignore
+ */
+const isOf = (x, y) => x instanceof y;
+/**
+ * @ignore
+ */
+const isArray = x => isOf(x, Array);
+/**
+ * @ignore
+ */
 const isIterable = obj => isObject(obj) && isFunction(obj[Symbol.iterator]);
 /**
  * @ignore
@@ -111,7 +127,7 @@ function subscribeActual(observer) {
   try {
     err = this.supplier();
 
-    if (err == null) {
+    if (isNull(err)) {
       throw new Error('Maybe.error: Error supplier returned a null value.');
     }
   } catch (e) {
@@ -125,7 +141,7 @@ function subscribeActual(observer) {
 var error = (value) => {
   let report = value;
 
-  if (!(value instanceof Error || isFunction(value))) {
+  if (!(isOf(value, Error) || isFunction(value))) {
     report = new Error('Maybe.error received a non-Error value.');
   }
 
@@ -136,6 +152,11 @@ var error = (value) => {
   maybe.supplier = report;
   return maybe;
 };
+
+/**
+ * @ignore
+ */
+var is = x => x instanceof Maybe;
 
 /* eslint-disable no-restricted-syntax */
 
@@ -154,7 +175,7 @@ function subscribeActual$1(observer) {
   const { sources } = this;
 
   for (const maybe of sources) {
-    if (maybe instanceof Maybe) {
+    if (is(maybe)) {
       maybe.subscribeWith({
         onSubscribe(ac) {
           controller.add(ac);
@@ -191,20 +212,84 @@ var amb = (sources) => {
   return maybe;
 };
 
-/**
- * @ignore
- */
-var ambWith = (source, other) => {
-  if (!(other instanceof Maybe)) {
-    return source;
-  }
-  return amb([source, other]);
-};
+/* eslint-disable no-restricted-syntax */
 
 /**
  * @ignore
  */
 function subscribeActual$2(observer) {
+  const {
+    onSuccess, onComplete, onError, onSubscribe,
+  } = cleanObserver(observer);
+
+  const { sources } = this;
+  const { length } = sources;
+
+  if (length === 0) {
+    immediateError(observer, new Error('Maybe.ambArray: sources Array is empty.'));
+  } else {
+    const controller = new rxCancellable.CompositeCancellable();
+
+    onSubscribe(controller);
+
+    for (let i = 0; i < length; i += 1) {
+      const maybe = sources[i];
+      if (controller.cancelled) {
+        return;
+      }
+      if (is(maybe)) {
+        maybe.subscribeWith({
+          onSubscribe(c) {
+            controller.add(c);
+          },
+          // eslint-disable-next-line no-loop-func
+          onSuccess(x) {
+            onSuccess(x);
+            controller.cancel();
+          },
+          onComplete() {
+            onComplete();
+            controller.cancel();
+          },
+          onError(x) {
+            onError(x);
+            controller.cancel();
+          },
+        });
+      } else {
+        onError(new Error('Maybe.ambArray: One of the sources is a non-Maybe.'));
+        controller.cancel();
+        break;
+      }
+    }
+  }
+}
+/**
+ * @ignore
+ */
+var ambArray = (sources) => {
+  if (!isArray(sources)) {
+    return error(new Error('Maybe.ambArray: sources is not an Array.'));
+  }
+  const maybe = new Maybe(subscribeActual$2);
+  maybe.sources = sources;
+  return maybe;
+};
+
+/**
+ * @ignore
+ */
+var ambWith = (source, other) => {
+  if (!is(other)) {
+    return source;
+  }
+  return ambArray([source, other]);
+};
+
+/**
+ * @ignore
+ */
+function subscribeActual$3(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -269,9 +354,9 @@ function subscribeActual$2(observer) {
     onSubscribe(controller);
 
     const { value, error } = this;
-    if (value != null) {
+    if (exists(value)) {
       onSuccess(value);
-    } else if (error != null) {
+    } else if (exists(error)) {
       onError(error);
     } else {
       onComplete();
@@ -284,7 +369,7 @@ function subscribeActual$2(observer) {
  * @ignore
  */
 var cache = (source) => {
-  const maybe = new Maybe(subscribeActual$2);
+  const maybe = new Maybe(subscribeActual$3);
   maybe.source = source;
   maybe.cached = false;
   maybe.subscribed = false;
@@ -292,10 +377,6 @@ var cache = (source) => {
   return maybe;
 };
 
-/**
- * @ignore
- */
-const LINK = new WeakMap();
 /**
  * Abstraction over a MaybeObserver that allows associating
  * a resource with it.
@@ -306,6 +387,9 @@ const LINK = new WeakMap();
  */
 // eslint-disable-next-line no-unused-vars
 class MaybeEmitter extends rxCancellable.Cancellable {
+  /**
+   * @ignore
+   */
   constructor(success, complete, error) {
     super();
     /**
@@ -320,8 +404,10 @@ class MaybeEmitter extends rxCancellable.Cancellable {
      * @ignore
      */
     this.error = error;
-
-    LINK.set(this, new rxCancellable.BooleanCancellable());
+    /**
+     * @ignore
+     */
+    this.linked = new rxCancellable.BooleanCancellable();
   }
 
   /**
@@ -329,7 +415,7 @@ class MaybeEmitter extends rxCancellable.Cancellable {
    * @returns {boolean}
    */
   get cancelled() {
-    return LINK.get(this).cancelled;
+    return this.linked.cancelled;
   }
 
   /**
@@ -337,7 +423,7 @@ class MaybeEmitter extends rxCancellable.Cancellable {
    * @returns {boolean}
    */
   cancel() {
-    return LINK.get(this).cancel();
+    return this.linked.cancel();
   }
 
   /**
@@ -355,9 +441,9 @@ class MaybeEmitter extends rxCancellable.Cancellable {
         this.cancel();
         return true;
       } else {
-        const link = LINK.get(this);
-        LINK.set(this, cancellable);
-        link.cancel();
+        const { linked } = this;
+        this.linked = cancellable;
+        linked.cancel();
         return true;
       }
     }
@@ -423,7 +509,7 @@ class MaybeEmitter extends rxCancellable.Cancellable {
 /**
  * @ignore
  */
-function subscribeActual$3(observer) {
+function subscribeActual$4(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -442,10 +528,10 @@ function subscribeActual$3(observer) {
  * @ignore
  */
 var create = (subscriber) => {
-  if (typeof subscriber !== 'function') {
+  if (!isFunction(subscriber)) {
     return error(new Error('Maybe.create: There are no subscribers.'));
   }
-  const maybe = new Maybe(subscribeActual$3);
+  const maybe = new Maybe(subscribeActual$4);
   maybe.subscriber = subscriber;
   return maybe;
 };
@@ -463,7 +549,7 @@ var compose = (source, transformer) => {
   try {
     result = transformer(source);
 
-    if (!(result instanceof Maybe)) {
+    if (!is(result)) {
       throw new Error('Maybe.compose: transformer returned a non-Maybe.');
     }
   } catch (e) {
@@ -473,7 +559,7 @@ var compose = (source, transformer) => {
   return result;
 };
 
-function subscribeActual$4(observer) {
+function subscribeActual$5(observer) {
   const {
     onSubscribe, onSuccess, onError,
   } = cleanObserver(observer);
@@ -500,11 +586,11 @@ function subscribeActual$4(observer) {
  * @ignore
  */
 var defaultIfEmpty = (source, value) => {
-  if (value == null) {
+  if (isNull(value)) {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$4);
+  const maybe = new Maybe(subscribeActual$5);
   maybe.source = source;
   maybe.value = value;
 
@@ -514,7 +600,7 @@ var defaultIfEmpty = (source, value) => {
 /**
  * @ignore
  */
-function subscribeActual$5(observer) {
+function subscribeActual$6(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -524,14 +610,14 @@ function subscribeActual$5(observer) {
   let err;
   try {
     result = this.supplier();
-    if (!(result instanceof Maybe)) {
+    if (!is(result)) {
       throw new Error('Maybe.defer: supplier returned a non-Maybe.');
     }
   } catch (e) {
     err = e;
   }
 
-  if (err != null) {
+  if (exists(err)) {
     immediateError(observer, err);
   } else {
     result.subscribeWith({
@@ -546,7 +632,7 @@ function subscribeActual$5(observer) {
  * @ignore
  */
 var defer = (supplier) => {
-  const maybe = new Maybe(subscribeActual$5);
+  const maybe = new Maybe(subscribeActual$6);
   maybe.supplier = supplier;
   return maybe;
 };
@@ -554,7 +640,7 @@ var defer = (supplier) => {
 /**
  * @ignore
  */
-function subscribeActual$6(observer) {
+function subscribeActual$7(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -592,10 +678,10 @@ var delay = (source, amount, scheduler, doDelayError) => {
     return source;
   }
   let sched = scheduler;
-  if (!(sched instanceof Scheduler.interface)) {
+  if (!isOf(sched, Scheduler.interface)) {
     sched = Scheduler.current;
   }
-  const maybe = new Maybe(subscribeActual$6);
+  const maybe = new Maybe(subscribeActual$7);
   maybe.source = source;
   maybe.amount = amount;
   maybe.scheduler = sched;
@@ -606,7 +692,7 @@ var delay = (source, amount, scheduler, doDelayError) => {
 /**
  * @ignore
  */
-function subscribeActual$7(observer) {
+function subscribeActual$8(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -636,10 +722,10 @@ var delaySubscription = (source, amount, scheduler) => {
     return source;
   }
   let sched = scheduler;
-  if (!(sched instanceof Scheduler.interface)) {
+  if (!isOf(sched, Scheduler.interface)) {
     sched = Scheduler.current;
   }
-  const maybe = new Maybe(subscribeActual$7);
+  const maybe = new Maybe(subscribeActual$8);
   maybe.source = source;
   maybe.amount = amount;
   maybe.scheduler = sched;
@@ -649,7 +735,7 @@ var delaySubscription = (source, amount, scheduler) => {
 /**
  * @ignore
  */
-function subscribeActual$8(observer) {
+function subscribeActual$9(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -685,10 +771,10 @@ function subscribeActual$8(observer) {
  * @ignore
  */
 var delayUntil = (source, other) => {
-  if (!(other instanceof Maybe)) {
+  if (!is(other)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$8);
+  const maybe = new Maybe(subscribeActual$9);
   maybe.source = source;
   maybe.other = other;
   return maybe;
@@ -697,7 +783,7 @@ var delayUntil = (source, other) => {
 /**
  * @ignore
  */
-function subscribeActual$9(observer) {
+function subscribeActual$a(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -723,7 +809,7 @@ var doAfterSuccess = (source, callable) => {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$9);
+  const maybe = new Maybe(subscribeActual$a);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -732,7 +818,7 @@ var doAfterSuccess = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$a(observer) {
+function subscribeActual$b(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -763,7 +849,7 @@ var doAfterTerminate = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$a);
+  const maybe = new Maybe(subscribeActual$b);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -772,7 +858,7 @@ var doAfterTerminate = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$b(observer) {
+function subscribeActual$c(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -821,7 +907,7 @@ var doFinally = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$b);
+  const maybe = new Maybe(subscribeActual$c);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -830,7 +916,7 @@ var doFinally = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$c(observer) {
+function subscribeActual$d(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -855,7 +941,7 @@ var doOnCancel = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$c);
+  const maybe = new Maybe(subscribeActual$d);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -864,7 +950,7 @@ var doOnCancel = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$d(observer) {
+function subscribeActual$e(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -889,7 +975,7 @@ var doOnComplete = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$d);
+  const maybe = new Maybe(subscribeActual$e);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -898,7 +984,7 @@ var doOnComplete = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$e(observer) {
+function subscribeActual$f(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -923,7 +1009,7 @@ var doOnError = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$e);
+  const maybe = new Maybe(subscribeActual$f);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -932,7 +1018,7 @@ var doOnError = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$f(observer) {
+function subscribeActual$g(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -963,7 +1049,7 @@ var doOnEvent = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$f);
+  const maybe = new Maybe(subscribeActual$g);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -972,7 +1058,7 @@ var doOnEvent = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$g(observer) {
+function subscribeActual$h(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -997,7 +1083,7 @@ var doOnSuccess = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$g);
+  const maybe = new Maybe(subscribeActual$h);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -1006,7 +1092,7 @@ var doOnSuccess = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$h(observer) {
+function subscribeActual$i(observer) {
   const {
     onSuccess, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -1030,7 +1116,7 @@ var doOnSubscribe = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$h);
+  const maybe = new Maybe(subscribeActual$i);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
@@ -1039,7 +1125,7 @@ var doOnSubscribe = (source, callable) => {
 /**
  * @ignore
  */
-function subscribeActual$i(observer) {
+function subscribeActual$j(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -1070,18 +1156,11 @@ var doOnTerminate = (source, callable) => {
   if (!isFunction(callable)) {
     return source;
   }
-  const maybe = new Maybe(subscribeActual$i);
+  const maybe = new Maybe(subscribeActual$j);
   maybe.source = source;
   maybe.callable = callable;
   return maybe;
 };
-
-/**
- * @ignore
- */
-function subscribeActual$j(observer) {
-  immediateComplete(observer);
-}
 
 let INSTANCE;
 /**
@@ -1089,7 +1168,7 @@ let INSTANCE;
  */
 var empty = () => {
   if (typeof INSTANCE === 'undefined') {
-    INSTANCE = new Maybe(subscribeActual$j);
+    INSTANCE = new Maybe(observer => immediateComplete(observer));
   }
   return INSTANCE;
 };
@@ -1221,7 +1300,7 @@ function subscribeActual$m(observer) {
   onSubscribe(emitter);
 
   this.promise.then(
-    x => (x == null ? emitter.onComplete() : emitter.onSuccess(x)),
+    x => (isNull(x) ? emitter.onComplete() : emitter.onSuccess(x)),
     x => emitter.onError(x),
   );
 }
@@ -1300,7 +1379,7 @@ function subscribeActual$o(observer) {
   onSubscribe(emitter);
 
   this.subscriber(
-    x => (x == null ? emitter.onComplete() : emitter.onSuccess(x)),
+    x => (isNull(x) ? emitter.onComplete() : emitter.onSuccess(x)),
     x => emitter.onError(x),
   );
 }
@@ -1326,7 +1405,7 @@ function subscribeActual$p(observer) {
  * @ignore
  */
 var just = (value) => {
-  if (value == null) {
+  if (isNull(value)) {
     return error(new Error('Maybe.just: received a null value.'));
   }
   const maybe = new Maybe(subscribeActual$p);
@@ -1358,7 +1437,7 @@ function subscribeActual$q(observer) {
  * @ignore
  */
 var lift = (source, operator) => {
-  if (typeof operator !== 'function') {
+  if (!isFunction(operator)) {
     return source;
   }
 
@@ -1367,11 +1446,6 @@ var lift = (source, operator) => {
   maybe.operator = operator;
   return maybe;
 };
-
-/**
- * @ignore
- */
-const defaultMapper = x => x;
 
 /**
  * @ignore
@@ -1389,7 +1463,7 @@ function subscribeActual$r(observer) {
       let result;
       try {
         result = mapper(x);
-        if (result == null) {
+        if (isNull(result)) {
           throw new Error('Maybe.map: mapper function returned a null value.');
         }
       } catch (e) {
@@ -1406,14 +1480,13 @@ function subscribeActual$r(observer) {
  * @ignore
  */
 var map = (source, mapper) => {
-  let ms = mapper;
   if (!isFunction(mapper)) {
-    ms = defaultMapper;
+    return source;
   }
 
   const maybe = new Maybe(subscribeActual$r);
   maybe.source = source;
-  maybe.mapper = ms;
+  maybe.mapper = mapper;
   return maybe;
 };
 
@@ -1437,7 +1510,7 @@ function subscribeActual$s(observer) {
     onSuccess(x) {
       controller.unlink();
       let result = x;
-      if (!(x instanceof Maybe)) {
+      if (!is(x)) {
         result = error(new Error('Maybe.merge: source emitted a non-Maybe value.'));
       }
       result.subscribeWith({
@@ -1457,7 +1530,7 @@ function subscribeActual$s(observer) {
  * @ignore
  */
 var merge = (source) => {
-  if (!(source instanceof Maybe)) {
+  if (!is(source)) {
     return error(new Error('Maybe.merge: source is not a Maybe.'));
   }
 
@@ -1501,7 +1574,7 @@ function subscribeActual$t(observer) {
  */
 var observeOn = (source, scheduler) => {
   let sched = scheduler;
-  if (!(sched instanceof Scheduler.interface)) {
+  if (!isOf(sched, Scheduler.interface)) {
     sched = Scheduler.current;
   }
   const maybe = new Maybe(subscribeActual$t);
@@ -1575,11 +1648,12 @@ function subscribeActual$v(observer) {
       if (isFunction(resumeIfError)) {
         try {
           result = resumeIfError(x);
-          if (result == null) {
+          if (isNull(result)) {
             throw new Error('Maybe.onErrorResumeNext: returned an non-Maybe.');
           }
         } catch (e) {
           onError(new Error([x, e]));
+          controller.cancel();
           return;
         }
       } else {
@@ -1601,7 +1675,7 @@ function subscribeActual$v(observer) {
  * @ignore
  */
 var onErrorResumeNext = (source, resumeIfError) => {
-  if (!(isFunction(resumeIfError) || resumeIfError instanceof Maybe)) {
+  if (!(isFunction(resumeIfError) || is(resumeIfError))) {
     return source;
   }
 
@@ -1631,7 +1705,7 @@ function subscribeActual$w(observer) {
         onError([x, e]);
         return;
       }
-      if (result == null) {
+      if (isNull(result)) {
         onComplete();
       } else {
         onSuccess(result);
@@ -1671,7 +1745,7 @@ function subscribeActual$x(observer) {
  * @ignore
  */
 var onErrorReturnItem = (source, item) => {
-  if (item == null) {
+  if (isNull(item)) {
     return source;
   }
 
@@ -1682,13 +1756,6 @@ var onErrorReturnItem = (source, item) => {
 };
 
 /* eslint-disable class-methods-use-this */
-
-/**
- * @ignore
- */
-function subscribeActual$y(observer) {
-  observer.onSubscribe(rxCancellable.UNCANCELLED);
-}
 /**
  * @ignore
  */
@@ -1698,7 +1765,7 @@ let INSTANCE$1;
  */
 var never = () => {
   if (typeof INSTANCE$1 === 'undefined') {
-    INSTANCE$1 = new Maybe(subscribeActual$y);
+    INSTANCE$1 = new Maybe(o => o.onSubscribe(rxCancellable.UNCANCELLED));
   }
   return INSTANCE$1;
 };
@@ -1706,7 +1773,7 @@ var never = () => {
 /**
  * @ignore
  */
-function subscribeActual$z(observer) {
+function subscribeActual$y(observer) {
   const {
     onSubscribe, onComplete, onSuccess, onError,
   } = cleanObserver(observer);
@@ -1753,13 +1820,13 @@ function subscribeActual$z(observer) {
  * @ignore
  */
 var retry = (source, bipredicate) => {
-  const maybe = new Maybe(subscribeActual$z);
+  const maybe = new Maybe(subscribeActual$y);
   maybe.source = source;
   maybe.bipredicate = bipredicate;
   return maybe;
 };
 
-function subscribeActual$A(observer) {
+function subscribeActual$z(observer) {
   const {
     onSubscribe, onSuccess, onComplete, onError,
   } = cleanObserver(observer);
@@ -1787,16 +1854,16 @@ function subscribeActual$A(observer) {
  */
 var subscribeOn = (source, scheduler) => {
   let sched = scheduler;
-  if (!(sched instanceof Scheduler.interface)) {
+  if (!isOf(sched, Scheduler.interface)) {
     sched = Scheduler.current;
   }
-  const maybe = new Maybe(subscribeActual$A);
+  const maybe = new Maybe(subscribeActual$z);
   maybe.source = source;
   maybe.scheduler = sched;
   return maybe;
 };
 
-function subscribeActual$B(observer) {
+function subscribeActual$A(observer) {
   const {
     onSubscribe, onSuccess, onComplete, onError,
   } = cleanObserver(observer);
@@ -1831,11 +1898,11 @@ function subscribeActual$B(observer) {
  * @ignore
  */
 var switchIfEmpty = (source, other) => {
-  if (!(other instanceof Maybe)) {
+  if (!is(other)) {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$B);
+  const maybe = new Maybe(subscribeActual$A);
   maybe.source = source;
   maybe.other = other;
 
@@ -1845,7 +1912,7 @@ var switchIfEmpty = (source, other) => {
 /**
  * @ignore
  */
-function subscribeActual$C(observer) {
+function subscribeActual$B(observer) {
   const {
     onSubscribe, onComplete, onSuccess, onError,
   } = cleanObserver(observer);
@@ -1897,11 +1964,11 @@ function subscribeActual$C(observer) {
  * @ignore
  */
 const takeUntil = (source, other) => {
-  if (!(other instanceof Maybe)) {
+  if (!is(other)) {
     return source;
   }
 
-  const maybe = new Maybe(subscribeActual$C);
+  const maybe = new Maybe(subscribeActual$B);
   maybe.source = source;
   maybe.other = other;
   return maybe;
@@ -1910,7 +1977,7 @@ const takeUntil = (source, other) => {
 /**
  * @ignore
  */
-function subscribeActual$D(observer) {
+function subscribeActual$C(observer) {
   const { onSuccess, onSubscribe } = cleanObserver(observer);
 
   onSubscribe(this.scheduler.delay(() => onSuccess(0), this.amount));
@@ -1924,10 +1991,10 @@ var timer = (amount, scheduler) => {
   }
 
   let sched = scheduler;
-  if (!(sched instanceof Scheduler.interface)) {
+  if (!isOf(sched, Scheduler.interface)) {
     sched = Scheduler.current;
   }
-  const maybe = new Maybe(subscribeActual$D);
+  const maybe = new Maybe(subscribeActual$C);
   maybe.amount = amount;
   maybe.scheduler = sched;
   return maybe;
@@ -1936,7 +2003,7 @@ var timer = (amount, scheduler) => {
 /**
  * @ignore
  */
-function subscribeActual$E(observer) {
+function subscribeActual$D(observer) {
   const {
     onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
@@ -1974,25 +2041,23 @@ var timeout = (source, amount, scheduler) => {
     return source;
   }
   let sched = scheduler;
-  if (!(sched instanceof Scheduler.interface)) {
+  if (!isOf(sched, Scheduler.interface)) {
     sched = Scheduler.current;
   }
-  const maybe = new Maybe(subscribeActual$E);
+  const maybe = new Maybe(subscribeActual$D);
   maybe.source = source;
   maybe.amount = amount;
   maybe.scheduler = sched;
   return maybe;
 };
 
-/* eslint-disable no-loop-func */
-
 const defaultZipper = x => x;
 /**
  * @ignore
  */
-function subscribeActual$F(observer) {
+function subscribeActual$E(observer) {
   const {
-    onSuccess, onComplete, onError, onSubscribe,
+    onSuccess, onError, onComplete, onSubscribe,
   } = cleanObserver(observer);
 
   const result = [];
@@ -2006,24 +2071,25 @@ function subscribeActual$F(observer) {
   const size = sources.length;
 
   if (size === 0) {
-    onError(new Error('Maybe.zip: empty iterable'));
+    onError(new Error('Maybe.zipArray: source array is empty'));
     controller.cancel();
     return;
   }
+
   let pending = size;
 
   for (let i = 0; i < size; i += 1) {
+    if (controller.cancelled) {
+      return;
+    }
     const maybe = sources[i];
 
-    if (maybe instanceof Maybe) {
+    if (is(maybe)) {
       maybe.subscribeWith({
         onSubscribe(ac) {
           controller.add(ac);
         },
-        onComplete() {
-          onComplete();
-          controller.cancel();
-        },
+        // eslint-disable-next-line no-loop-func
         onSuccess(x) {
           result[i] = x;
           pending -= 1;
@@ -2031,8 +2097,8 @@ function subscribeActual$F(observer) {
             let r;
             try {
               r = zipper(result);
-              if (r == null) {
-                throw new Error('Maybe.zip: zipper function returned a null value.');
+              if (isNull(r)) {
+                throw new Error('Maybe.zipArray: zipper function returned a null value.');
               }
             } catch (e) {
               onError(e);
@@ -2043,33 +2109,34 @@ function subscribeActual$F(observer) {
             controller.cancel();
           }
         },
+        onComplete() {
+          onComplete();
+          controller.cancel();
+        },
         onError(x) {
           onError(x);
           controller.cancel();
         },
       });
-    } else if (maybe != null) {
-      result[i] = maybe;
-      pending -= 1;
     } else {
-      onError(new Error('Maybe.zip: One of the sources is undefined.'));
+      onError(new Error('Maybe.zipArray: One of the sources is non-Maybe.'));
       controller.cancel();
-      break;
+      return;
     }
   }
 }
 /**
  * @ignore
  */
-var zip = (sources, zipper) => {
-  if (!isIterable(sources)) {
-    return error(new Error('Maybe.zip: sources is not Iterable.'));
+var zipArray = (sources, zipper) => {
+  if (!isArray(sources)) {
+    return error(new Error('Maybe.zipArray: sources is a non-Array.'));
   }
   let fn = zipper;
   if (!isFunction(zipper)) {
     fn = defaultZipper;
   }
-  const maybe = new Maybe(subscribeActual$F);
+  const maybe = new Maybe(subscribeActual$E);
   maybe.sources = sources;
   maybe.zipper = fn;
   return maybe;
@@ -2079,10 +2146,10 @@ var zip = (sources, zipper) => {
  * @ignore
  */
 var zipWith = (source, other, zipper) => {
-  if (!(other instanceof Maybe)) {
+  if (!is(other)) {
     return source;
   }
-  return zip([source, other], zipper);
+  return zipArray([source, other], zipper);
 };
 
 /* eslint-disable import/no-cycle */
@@ -2151,8 +2218,8 @@ class Maybe {
   }
 
   /**
-   * Runs multiple MaybeSources and signals the events
-   * of the first one that signals (aborting the rest).
+   * Runs multiple Maybe and signals the events
+   * of the first one that signals (cancelling the rest).
    *
    * @param {!Iterable} sources
    * the Iterable sequence of sources. A subscription
@@ -2165,6 +2232,19 @@ class Maybe {
   }
 
   /**
+   * Runs multiple Maybe and signals the events of
+   * the first one that signals (cancelling the rest).
+   *
+   * @param {!Array} sources
+   * the array of sources. A subscription to each source
+   * will occur in the same order as in the array.
+   * @returns {Maybe}
+   */
+  static ambArray(sources) {
+    return ambArray(sources);
+  }
+
+  /**
    * Mirrors the Maybe (current or provided) that
    * first signals an event.
    * @param {!Maybe} other
@@ -2173,7 +2253,7 @@ class Maybe {
    * to the current source.
    * @returns {Maybe}
    * a Maybe that emits the same sequence as whichever of the
-   * source MaybeSources first signalled
+   * source Maybe first signalled
    */
   ambWith(other) {
     return ambWith(this, other);
@@ -2781,18 +2861,18 @@ class Maybe {
   }
 
   /**
-   * Returns a Maybe that emits the results of a specified combiner function
-   * applied to combinations of items emitted, in sequence, by an Iterable of other
-   * Maybes.
-   * @param {!Iterable} sources
-   * an Iterable of source Maybe
+   * Returns a Maybe that emits the results of a specified combiner
+   * function applied to combinations of items emitted, in sequence,
+   * by an array of other Maybe.
+   * @param {!Array} sources
+   * an array of source Maybe
    * @param {?function(results: Array):any} zipper
    * a function that, when applied to an item emitted by each of the source Maybe,
    * results in an item that will be emitted by the resulting Maybe
    * @returns {Maybe}
    */
-  static zip(sources, zipper) {
-    return zip(sources, zipper);
+  static zipArray(sources, zipper) {
+    return zipArray(sources, zipper);
   }
 
   /**

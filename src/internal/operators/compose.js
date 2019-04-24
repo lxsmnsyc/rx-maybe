@@ -1,6 +1,7 @@
-import Maybe from '../../maybe';
+
 import error from './error';
 import { isFunction } from '../utils';
+import is from '../is';
 
 /**
  * @ignore
@@ -15,7 +16,7 @@ export default (source, transformer) => {
   try {
     result = transformer(source);
 
-    if (!(result instanceof Maybe)) {
+    if (!is(result)) {
       throw new Error('Maybe.compose: transformer returned a non-Maybe.');
     }
   } catch (e) {

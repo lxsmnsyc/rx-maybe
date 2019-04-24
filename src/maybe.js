@@ -54,7 +54,8 @@ import {
   lift, map, merge, never, onErrorComplete,
   onErrorResumeNext, onErrorReturn,
   onErrorReturnItem, retry, switchIfEmpty,
-  takeUntil, timeout, timer, zip, zipWith, subscribeOn, observeOn,
+  takeUntil, timeout, timer, zipArray, zipWith,
+  subscribeOn, observeOn, ambArray,
 } from './internal/operators';
 /**
  * The Maybe class represents a deferred computation and emission of a single value,
@@ -93,8 +94,8 @@ export default class Maybe {
   }
 
   /**
-   * Runs multiple MaybeSources and signals the events
-   * of the first one that signals (aborting the rest).
+   * Runs multiple Maybe and signals the events
+   * of the first one that signals (cancelling the rest).
    *
    * @param {!Iterable} sources
    * the Iterable sequence of sources. A subscription
@@ -107,6 +108,19 @@ export default class Maybe {
   }
 
   /**
+   * Runs multiple Maybe and signals the events of
+   * the first one that signals (cancelling the rest).
+   *
+   * @param {!Array} sources
+   * the array of sources. A subscription to each source
+   * will occur in the same order as in the array.
+   * @returns {Maybe}
+   */
+  static ambArray(sources) {
+    return ambArray(sources);
+  }
+
+  /**
    * Mirrors the Maybe (current or provided) that
    * first signals an event.
    * @param {!Maybe} other
@@ -115,7 +129,7 @@ export default class Maybe {
    * to the current source.
    * @returns {Maybe}
    * a Maybe that emits the same sequence as whichever of the
-   * source MaybeSources first signalled
+   * source Maybe first signalled
    */
   ambWith(other) {
     return ambWith(this, other);
@@ -723,18 +737,18 @@ export default class Maybe {
   }
 
   /**
-   * Returns a Maybe that emits the results of a specified combiner function
-   * applied to combinations of items emitted, in sequence, by an Iterable of other
-   * Maybes.
-   * @param {!Iterable} sources
-   * an Iterable of source Maybe
+   * Returns a Maybe that emits the results of a specified combiner
+   * function applied to combinations of items emitted, in sequence,
+   * by an array of other Maybe.
+   * @param {!Array} sources
+   * an array of source Maybe
    * @param {?function(results: Array):any} zipper
    * a function that, when applied to an item emitted by each of the source Maybe,
    * results in an item that will be emitted by the resulting Maybe
    * @returns {Maybe}
    */
-  static zip(sources, zipper) {
-    return zip(sources, zipper);
+  static zipArray(sources, zipper) {
+    return zipArray(sources, zipper);
   }
 
   /**

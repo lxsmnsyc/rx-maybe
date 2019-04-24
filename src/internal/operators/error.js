@@ -1,4 +1,6 @@
-import { toCallable, immediateError, isFunction } from '../utils';
+import {
+  toCallable, immediateError, isFunction, isOf, isNull,
+} from '../utils';
 import Maybe from '../../maybe';
 
 /**
@@ -10,7 +12,7 @@ function subscribeActual(observer) {
   try {
     err = this.supplier();
 
-    if (err == null) {
+    if (isNull(err)) {
       throw new Error('Maybe.error: Error supplier returned a null value.');
     }
   } catch (e) {
@@ -24,7 +26,7 @@ function subscribeActual(observer) {
 export default (value) => {
   let report = value;
 
-  if (!(value instanceof Error || isFunction(value))) {
+  if (!(isOf(value, Error) || isFunction(value))) {
     report = new Error('Maybe.error received a non-Error value.');
   }
 

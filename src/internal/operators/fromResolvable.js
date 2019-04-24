@@ -1,5 +1,5 @@
 import {
-  cleanObserver, isFunction,
+  cleanObserver, isFunction, isNull,
 } from '../utils';
 import Maybe from '../../maybe';
 import error from './error';
@@ -15,7 +15,7 @@ function subscribeActual(observer) {
   onSubscribe(emitter);
 
   this.subscriber(
-    x => (x == null ? emitter.onComplete() : emitter.onSuccess(x)),
+    x => (isNull(x) ? emitter.onComplete() : emitter.onSuccess(x)),
     x => emitter.onError(x),
   );
 }

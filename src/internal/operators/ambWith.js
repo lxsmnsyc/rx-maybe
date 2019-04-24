@@ -1,11 +1,11 @@
-import Maybe from '../../maybe';
-import amb from './amb';
+import ambArray from './ambArray';
+import is from '../is';
 /**
  * @ignore
  */
 export default (source, other) => {
-  if (!(other instanceof Maybe)) {
+  if (!is(other)) {
     return source;
   }
-  return amb([source, other]);
+  return ambArray([source, other]);
 };

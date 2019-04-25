@@ -2037,71 +2037,69 @@ const defaultZipper = x => x;
  */
 function subscribeActual$E(observer) {
   const {
-    onSuccess, onError, onComplete, onSubscribe,
+    onSuccess, onComplete, onError, onSubscribe,
   } = cleanObserver(observer);
 
   const result = [];
-
-  const controller = new rxCancellable.CompositeCancellable();
-
-  onSubscribe(controller);
 
   const { sources, zipper } = this;
 
   const size = sources.length;
 
   if (size === 0) {
-    onError(new Error('Maybe.zipArray: source array is empty'));
-    controller.cancel();
-    return;
-  }
+    immediateError(observer, new Error('Maybe.zipArray: source array is empty'));
+  } else {
+    const controller = new rxCancellable.CompositeCancellable();
 
-  let pending = size;
+    onSubscribe(controller);
 
-  for (let i = 0; i < size; i += 1) {
-    if (controller.cancelled) {
-      return;
-    }
-    const maybe = sources[i];
+    let pending = size;
 
-    if (is(maybe)) {
-      maybe.subscribeWith({
-        onSubscribe(ac) {
-          controller.add(ac);
-        },
-        // eslint-disable-next-line no-loop-func
-        onSuccess(x) {
-          result[i] = x;
-          pending -= 1;
-          if (pending === 0) {
-            let r;
-            try {
-              r = zipper(result);
-              if (isNull(r)) {
-                throw new Error('Maybe.zipArray: zipper function returned a null value.');
+    for (let i = 0; i < size; i += 1) {
+      if (controller.cancelled) {
+        return;
+      }
+      const maybe = sources[i];
+
+      if (is(maybe)) {
+        maybe.subscribeWith({
+          onSubscribe(ac) {
+            controller.add(ac);
+          },
+          // eslint-disable-next-line no-loop-func
+          onSuccess(x) {
+            result[i] = x;
+            pending -= 1;
+            if (pending === 0) {
+              let r;
+              try {
+                r = zipper(result);
+                if (isNull(r)) {
+                  throw new Error('Maybe.zipArray: zipper function returned a null value.');
+                }
+              } catch (e) {
+                onError(e);
+                controller.cancel();
+                return;
               }
-            } catch (e) {
-              onError(e);
+              onSuccess(r);
               controller.cancel();
-              return;
             }
-            onSuccess(r);
+          },
+          onComplete() {
+            onComplete();
             controller.cancel();
-          }
-        },
-        onComplete() {
-          onComplete();
-          controller.cancel();
-        },
-        onError(x) {
-          onError(x);
-          controller.cancel();
-        },
-      });
-    } else {
-      onError(new Error('Maybe.zipArray: One of the sources is non-Maybe.'));
-      controller.cancel();
-      return;
+          },
+          onError(x) {
+            onError(x);
+            controller.cancel();
+          },
+        });
+      } else {
+        onError(new Error('Maybe.zipArray: One of the sources is non-Maybe.'));
+        controller.cancel();
+        return;
+      }
     }
   }
 }
@@ -2120,6 +2118,27 @@ var zipArray = (sources, zipper) => {
   maybe.sources = sources;
   maybe.zipper = fn;
   return maybe;
+};
+
+/* eslint-disable no-restricted-syntax */
+/**
+ * @ignore
+ */
+var zip = (sources, zipper) => {
+  if (!isIterable(sources)) {
+    return error(new Error('Maybe.zip: sources is a non-Iterable.'));
+  }
+
+  const singles = [];
+
+  for (const source of sources) {
+    if (is(source)) {
+      singles.push(source);
+    } else {
+      return error(new Error('Maybe.zip: one of the sources is not a Maybe.'));
+    }
+  }
+  return zipArray(singles, zipper);
 };
 
 /**
@@ -2838,6 +2857,21 @@ class Maybe {
    */
   static timer(amount, scheduler) {
     return timer(amount, scheduler);
+  }
+
+  /**
+   * Returns a Maybe that emits the results of a specified combiner
+   * function applied to combinations of items emitted, in sequence,
+   * by an iterable sequence of other Maybe.
+   * @param {!Iterable} sources
+   * an iterable sequence of source Maybes
+   * @param {?function(results: Array):any} zipper
+   * a function that, when applied to an item emitted by each of the source Maybe,
+   * results in an item that will be emitted by the resulting Maybe
+   * @returns {Maybe}
+   */
+  static zip(sources, zipper) {
+    return zip(sources, zipper);
   }
 
   /**

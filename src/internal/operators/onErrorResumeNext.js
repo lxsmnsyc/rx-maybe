@@ -21,7 +21,6 @@ function subscribeActual(observer) {
     onComplete,
     onSuccess,
     onError(x) {
-      controller.unlink();
       let result;
 
       if (isFunction(resumeIfError)) {
@@ -32,13 +31,12 @@ function subscribeActual(observer) {
           }
         } catch (e) {
           onError(new Error([x, e]));
-          controller.cancel();
           return;
         }
       } else {
         result = resumeIfError;
       }
-
+      controller.unlink();
       result.subscribeWith({
         onSubscribe(ac) {
           controller.link(ac);

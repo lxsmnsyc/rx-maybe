@@ -1800,7 +1800,6 @@ function subscribeActual$y(observer) {
             sub();
           } else {
             onError(x);
-            controller.cancel();
           }
         } else {
           sub();

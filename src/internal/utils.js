@@ -1,4 +1,5 @@
 import { BooleanCancellable } from 'rx-cancellable';
+import Scheduler from 'rx-scheduler';
 /**
  * @ignore
  */
@@ -111,3 +112,11 @@ export const immediateError = (o, x) => {
     controller.cancel();
   }
 };
+/**
+ * @ignore
+ */
+export const defaultScheduler = sched => (
+  isOf(sched, Scheduler.interface)
+    ? sched
+    : Scheduler.current
+);

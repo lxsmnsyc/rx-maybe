@@ -22,12 +22,12 @@ function subscribeActual(observer) {
     },
     onComplete,
     onSuccess(x) {
-      controller.unlink();
-      let result = x;
       if (!is(x)) {
-        result = error(new Error('Maybe.merge: source emitted a non-Maybe value.'));
+        onError(new Error('Maybe.merge: source emitted a non-Maybe value.'));
+        return;
       }
-      result.subscribeWith({
+      controller.unlink();
+      x.subscribeWith({
         onSubscribe(ac) {
           controller.link(ac);
         },

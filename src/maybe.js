@@ -55,7 +55,7 @@ import {
   onErrorResumeNext, onErrorReturn,
   onErrorReturnItem, retry, switchIfEmpty,
   takeUntil, timeout, timer, zipArray, zipWith,
-  subscribeOn, observeOn, ambArray,
+  subscribeOn, observeOn, ambArray, zip,
 } from './internal/operators';
 /**
  * The Maybe class represents a deferred computation and emission of a single value,
@@ -734,6 +734,21 @@ export default class Maybe {
    */
   static timer(amount, scheduler) {
     return timer(amount, scheduler);
+  }
+
+  /**
+   * Returns a Maybe that emits the results of a specified combiner
+   * function applied to combinations of items emitted, in sequence,
+   * by an iterable sequence of other Maybe.
+   * @param {!Iterable} sources
+   * an iterable sequence of source Maybes
+   * @param {?function(results: Array):any} zipper
+   * a function that, when applied to an item emitted by each of the source Maybe,
+   * results in an item that will be emitted by the resulting Maybe
+   * @returns {Maybe}
+   */
+  static zip(sources, zipper) {
+    return zip(sources, zipper);
   }
 
   /**

@@ -115,6 +115,14 @@ var Maybe = (function (rxCancellable, Scheduler) {
       controller.cancel();
     }
   };
+  /**
+   * @ignore
+   */
+  const defaultScheduler = sched => (
+    isOf(sched, Scheduler.interface)
+      ? sched
+      : Scheduler.current
+  );
 
   /**
    * @ignore
@@ -675,14 +683,10 @@ var Maybe = (function (rxCancellable, Scheduler) {
     if (!isNumber(amount)) {
       return source;
     }
-    let sched = scheduler;
-    if (!isOf(sched, Scheduler.interface)) {
-      sched = Scheduler.current;
-    }
     const maybe = new Maybe(subscribeActual$7);
     maybe.source = source;
     maybe.amount = amount;
-    maybe.scheduler = sched;
+    maybe.scheduler = defaultScheduler(scheduler);
     maybe.doDelayError = doDelayError;
     return maybe;
   };
@@ -719,14 +723,10 @@ var Maybe = (function (rxCancellable, Scheduler) {
     if (!isNumber(amount)) {
       return source;
     }
-    let sched = scheduler;
-    if (!isOf(sched, Scheduler.interface)) {
-      sched = Scheduler.current;
-    }
     const maybe = new Maybe(subscribeActual$8);
     maybe.source = source;
     maybe.amount = amount;
-    maybe.scheduler = sched;
+    maybe.scheduler = defaultScheduler(scheduler);
     return maybe;
   };
 
@@ -1571,13 +1571,9 @@ var Maybe = (function (rxCancellable, Scheduler) {
    * @ignore
    */
   var observeOn = (source, scheduler) => {
-    let sched = scheduler;
-    if (!isOf(sched, Scheduler.interface)) {
-      sched = Scheduler.current;
-    }
     const maybe = new Maybe(subscribeActual$t);
     maybe.source = source;
-    maybe.scheduler = sched;
+    maybe.scheduler = defaultScheduler(scheduler);
     return maybe;
   };
 
@@ -1851,13 +1847,9 @@ var Maybe = (function (rxCancellable, Scheduler) {
    * @ignore
    */
   var subscribeOn = (source, scheduler) => {
-    let sched = scheduler;
-    if (!isOf(sched, Scheduler.interface)) {
-      sched = Scheduler.current;
-    }
     const maybe = new Maybe(subscribeActual$z);
     maybe.source = source;
-    maybe.scheduler = sched;
+    maybe.scheduler = defaultScheduler(scheduler);
     return maybe;
   };
 
@@ -1987,14 +1979,9 @@ var Maybe = (function (rxCancellable, Scheduler) {
     if (!isNumber(amount)) {
       return error(new Error('Maybe.timer: "amount" is not a number.'));
     }
-
-    let sched = scheduler;
-    if (!isOf(sched, Scheduler.interface)) {
-      sched = Scheduler.current;
-    }
     const maybe = new Maybe(subscribeActual$C);
     maybe.amount = amount;
-    maybe.scheduler = sched;
+    maybe.scheduler = defaultScheduler(scheduler);
     return maybe;
   };
 
@@ -2038,14 +2025,10 @@ var Maybe = (function (rxCancellable, Scheduler) {
     if (!isNumber(amount)) {
       return source;
     }
-    let sched = scheduler;
-    if (!isOf(sched, Scheduler.interface)) {
-      sched = Scheduler.current;
-    }
     const maybe = new Maybe(subscribeActual$D);
     maybe.source = source;
     maybe.amount = amount;
-    maybe.scheduler = sched;
+    maybe.scheduler = defaultScheduler(scheduler);
     return maybe;
   };
 

@@ -1798,7 +1798,6 @@ var Maybe = (function (rxCancellable, Scheduler) {
               sub();
             } else {
               onError(x);
-              controller.cancel();
             }
           } else {
             sub();

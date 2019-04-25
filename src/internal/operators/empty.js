@@ -1,12 +1,12 @@
 import Maybe from '../../maybe';
-import { immediateComplete } from '../utils';
+import { immediateComplete, isNull } from '../utils';
 
 let INSTANCE;
 /**
  * @ignore
  */
 export default () => {
-  if (typeof INSTANCE === 'undefined') {
+  if (isNull(INSTANCE)) {
     INSTANCE = new Maybe(observer => immediateComplete(observer));
   }
   return INSTANCE;

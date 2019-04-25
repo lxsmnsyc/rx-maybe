@@ -117,6 +117,14 @@ const immediateError = (o, x) => {
     controller.cancel();
   }
 };
+/**
+ * @ignore
+ */
+const defaultScheduler = sched => (
+  isOf(sched, Scheduler.interface)
+    ? sched
+    : Scheduler.current
+);
 
 /**
  * @ignore
@@ -677,14 +685,10 @@ var delay = (source, amount, scheduler, doDelayError) => {
   if (!isNumber(amount)) {
     return source;
   }
-  let sched = scheduler;
-  if (!isOf(sched, Scheduler.interface)) {
-    sched = Scheduler.current;
-  }
   const maybe = new Maybe(subscribeActual$7);
   maybe.source = source;
   maybe.amount = amount;
-  maybe.scheduler = sched;
+  maybe.scheduler = defaultScheduler(scheduler);
   maybe.doDelayError = doDelayError;
   return maybe;
 };
@@ -721,14 +725,10 @@ var delaySubscription = (source, amount, scheduler) => {
   if (!isNumber(amount)) {
     return source;
   }
-  let sched = scheduler;
-  if (!isOf(sched, Scheduler.interface)) {
-    sched = Scheduler.current;
-  }
   const maybe = new Maybe(subscribeActual$8);
   maybe.source = source;
   maybe.amount = amount;
-  maybe.scheduler = sched;
+  maybe.scheduler = defaultScheduler(scheduler);
   return maybe;
 };
 
@@ -1573,13 +1573,9 @@ function subscribeActual$t(observer) {
  * @ignore
  */
 var observeOn = (source, scheduler) => {
-  let sched = scheduler;
-  if (!isOf(sched, Scheduler.interface)) {
-    sched = Scheduler.current;
-  }
   const maybe = new Maybe(subscribeActual$t);
   maybe.source = source;
-  maybe.scheduler = sched;
+  maybe.scheduler = defaultScheduler(scheduler);
   return maybe;
 };
 
@@ -1853,13 +1849,9 @@ function subscribeActual$z(observer) {
  * @ignore
  */
 var subscribeOn = (source, scheduler) => {
-  let sched = scheduler;
-  if (!isOf(sched, Scheduler.interface)) {
-    sched = Scheduler.current;
-  }
   const maybe = new Maybe(subscribeActual$z);
   maybe.source = source;
-  maybe.scheduler = sched;
+  maybe.scheduler = defaultScheduler(scheduler);
   return maybe;
 };
 
@@ -1989,14 +1981,9 @@ var timer = (amount, scheduler) => {
   if (!isNumber(amount)) {
     return error(new Error('Maybe.timer: "amount" is not a number.'));
   }
-
-  let sched = scheduler;
-  if (!isOf(sched, Scheduler.interface)) {
-    sched = Scheduler.current;
-  }
   const maybe = new Maybe(subscribeActual$C);
   maybe.amount = amount;
-  maybe.scheduler = sched;
+  maybe.scheduler = defaultScheduler(scheduler);
   return maybe;
 };
 
@@ -2040,14 +2027,10 @@ var timeout = (source, amount, scheduler) => {
   if (!isNumber(amount)) {
     return source;
   }
-  let sched = scheduler;
-  if (!isOf(sched, Scheduler.interface)) {
-    sched = Scheduler.current;
-  }
   const maybe = new Maybe(subscribeActual$D);
   maybe.source = source;
   maybe.amount = amount;
-  maybe.scheduler = sched;
+  maybe.scheduler = defaultScheduler(scheduler);
   return maybe;
 };
 

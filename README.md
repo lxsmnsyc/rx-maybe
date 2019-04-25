@@ -75,6 +75,8 @@ npm run build
 ```
 
 ## Changelogs
+* 0.5.0
+  - Reintroduced `zip`
 * 0.4.0
   - Massive performance boost
   - Renamed `zip` to `zipArray`

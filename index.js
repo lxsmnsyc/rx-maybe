@@ -1167,7 +1167,7 @@ let INSTANCE;
  * @ignore
  */
 var empty = () => {
-  if (typeof INSTANCE === 'undefined') {
+  if (isNull(INSTANCE)) {
     INSTANCE = new Maybe(observer => immediateComplete(observer));
   }
   return INSTANCE;
@@ -1248,7 +1248,6 @@ function subscribeActual$l(observer) {
     },
     onComplete,
     onSuccess(x) {
-      controller.unlink();
       let result;
       try {
         result = mapper(x);
@@ -1260,6 +1259,7 @@ function subscribeActual$l(observer) {
         onError(e);
         return;
       }
+      controller.unlink();
       result.subscribeWith({
         onSubscribe(ac) {
           controller.link(ac);
@@ -1508,12 +1508,12 @@ function subscribeActual$s(observer) {
     },
     onComplete,
     onSuccess(x) {
-      controller.unlink();
-      let result = x;
       if (!is(x)) {
-        result = error(new Error('Maybe.merge: source emitted a non-Maybe value.'));
+        onError(new Error('Maybe.merge: source emitted a non-Maybe value.'));
+        return;
       }
-      result.subscribeWith({
+      controller.unlink();
+      x.subscribeWith({
         onSubscribe(ac) {
           controller.link(ac);
         },
@@ -1638,7 +1638,6 @@ function subscribeActual$v(observer) {
     onComplete,
     onSuccess,
     onError(x) {
-      controller.unlink();
       let result;
 
       if (isFunction(resumeIfError)) {
@@ -1649,13 +1648,12 @@ function subscribeActual$v(observer) {
           }
         } catch (e) {
           onError(new Error([x, e]));
-          controller.cancel();
           return;
         }
       } else {
         result = resumeIfError;
       }
-
+      controller.unlink();
       result.subscribeWith({
         onSubscribe(ac) {
           controller.link(ac);

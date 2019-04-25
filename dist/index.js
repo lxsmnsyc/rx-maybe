@@ -1165,7 +1165,7 @@ var Maybe = (function (rxCancellable, Scheduler) {
    * @ignore
    */
   var empty = () => {
-    if (typeof INSTANCE === 'undefined') {
+    if (isNull(INSTANCE)) {
       INSTANCE = new Maybe(observer => immediateComplete(observer));
     }
     return INSTANCE;
@@ -1246,7 +1246,6 @@ var Maybe = (function (rxCancellable, Scheduler) {
       },
       onComplete,
       onSuccess(x) {
-        controller.unlink();
         let result;
         try {
           result = mapper(x);
@@ -1258,6 +1257,7 @@ var Maybe = (function (rxCancellable, Scheduler) {
           onError(e);
           return;
         }
+        controller.unlink();
         result.subscribeWith({
           onSubscribe(ac) {
             controller.link(ac);
@@ -1506,12 +1506,12 @@ var Maybe = (function (rxCancellable, Scheduler) {
       },
       onComplete,
       onSuccess(x) {
-        controller.unlink();
-        let result = x;
         if (!is(x)) {
-          result = error(new Error('Maybe.merge: source emitted a non-Maybe value.'));
+          onError(new Error('Maybe.merge: source emitted a non-Maybe value.'));
+          return;
         }
-        result.subscribeWith({
+        controller.unlink();
+        x.subscribeWith({
           onSubscribe(ac) {
             controller.link(ac);
           },
@@ -1636,7 +1636,6 @@ var Maybe = (function (rxCancellable, Scheduler) {
       onComplete,
       onSuccess,
       onError(x) {
-        controller.unlink();
         let result;
 
         if (isFunction(resumeIfError)) {
@@ -1647,13 +1646,12 @@ var Maybe = (function (rxCancellable, Scheduler) {
             }
           } catch (e) {
             onError(new Error([x, e]));
-            controller.cancel();
             return;
           }
         } else {
           result = resumeIfError;
         }
-
+        controller.unlink();
         result.subscribeWith({
           onSubscribe(ac) {
             controller.link(ac);

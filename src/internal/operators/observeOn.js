@@ -1,7 +1,6 @@
-import Scheduler from 'rx-scheduler';
 import { LinkedCancellable } from 'rx-cancellable';
 import Maybe from '../../maybe';
-import { cleanObserver, isOf } from '../utils';
+import { cleanObserver, defaultScheduler } from '../utils';
 
 function subscribeActual(observer) {
   const {
@@ -37,12 +36,8 @@ function subscribeActual(observer) {
  * @ignore
  */
 export default (source, scheduler) => {
-  let sched = scheduler;
-  if (!isOf(sched, Scheduler.interface)) {
-    sched = Scheduler.current;
-  }
   const maybe = new Maybe(subscribeActual);
   maybe.source = source;
-  maybe.scheduler = sched;
+  maybe.scheduler = defaultScheduler(scheduler);
   return maybe;
 };

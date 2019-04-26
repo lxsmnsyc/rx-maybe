@@ -285,12 +285,11 @@ var Maybe = (function (rxCancellable, Scheduler) {
   /**
    * @ignore
    */
-  var ambWith = (source, other) => {
-    if (!is(other)) {
-      return source;
-    }
-    return ambArray([source, other]);
-  };
+  var ambWith = (source, other) => (
+    !is(other)
+      ? source
+      : ambArray([source, other])
+  );
 
   /**
    * @ignore
@@ -2142,12 +2141,11 @@ var Maybe = (function (rxCancellable, Scheduler) {
   /**
    * @ignore
    */
-  var zipWith = (source, other, zipper) => {
-    if (!is(other)) {
-      return source;
-    }
-    return zipArray([source, other], zipper);
-  };
+  var zipWith = (source, other, zipper) => (
+    !is(other)
+      ? source
+      : zipArray([source, other], zipper)
+  );
 
   /* eslint-disable import/no-cycle */
 

@@ -46,7 +46,11 @@ export default class MaybeEmitter extends Cancellable {
    * @returns {boolean}
    */
   cancel() {
-    return this.linked.cancel();
+    if (!this.cancelled) {
+      this.events.cancel.forEach(f => f.apply(this));
+      return this.linked.cancel();
+    }
+    return false;
   }
 
   /**

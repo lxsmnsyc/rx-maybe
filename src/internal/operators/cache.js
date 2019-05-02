@@ -6,9 +6,7 @@ import { cleanObserver, exists } from '../utils';
  * @ignore
  */
 function subscribeActual(observer) {
-  const {
-    onSuccess, onComplete, onError, onSubscribe,
-  } = cleanObserver(observer);
+  const cleaned = cleanObserver(observer);
 
   const {
     source, cached, observers, subscribed,
@@ -16,7 +14,7 @@ function subscribeActual(observer) {
 
   if (!cached) {
     const index = observers.length;
-    observers[index] = observer;
+    observers[index] = cleaned;
 
     const controller = new BooleanCancellable();
 
@@ -24,7 +22,7 @@ function subscribeActual(observer) {
       observers.splice(index, 1);
     });
 
-    onSubscribe(controller);
+    cleaned.onSubscribe(controller);
 
     if (!subscribed) {
       source.subscribeWith({
@@ -67,15 +65,15 @@ function subscribeActual(observer) {
     }
   } else {
     const controller = new BooleanCancellable();
-    onSubscribe(controller);
+    cleaned.onSubscribe(controller);
 
     const { value, error } = this;
     if (exists(value)) {
-      onSuccess(value);
+      cleaned.onSuccess(value);
     } else if (exists(error)) {
-      onError(error);
+      cleaned.onError(error);
     } else {
-      onComplete();
+      cleaned.onComplete();
     }
     controller.cancel();
   }

@@ -297,9 +297,7 @@ var ambWith = (source, other) => (
  * @ignore
  */
 function subscribeActual$3(observer) {
-  const {
-    onSuccess, onComplete, onError, onSubscribe,
-  } = cleanObserver(observer);
+  const cleaned = cleanObserver(observer);
 
   const {
     source, cached, observers, subscribed,
@@ -307,7 +305,7 @@ function subscribeActual$3(observer) {
 
   if (!cached) {
     const index = observers.length;
-    observers[index] = observer;
+    observers[index] = cleaned;
 
     const controller = new rxCancellable.BooleanCancellable();
 
@@ -315,7 +313,7 @@ function subscribeActual$3(observer) {
       observers.splice(index, 1);
     });
 
-    onSubscribe(controller);
+    cleaned.onSubscribe(controller);
 
     if (!subscribed) {
       source.subscribeWith({
@@ -358,15 +356,15 @@ function subscribeActual$3(observer) {
     }
   } else {
     const controller = new rxCancellable.BooleanCancellable();
-    onSubscribe(controller);
+    cleaned.onSubscribe(controller);
 
     const { value, error } = this;
     if (exists(value)) {
-      onSuccess(value);
+      cleaned.onSuccess(value);
     } else if (exists(error)) {
-      onError(error);
+      cleaned.onError(error);
     } else {
-      onComplete();
+      cleaned.onComplete();
     }
     controller.cancel();
   }

@@ -43,9 +43,9 @@
   },
   "homepage": "https://github.com/LXSMNSYC/rx-maybe#readme",
   "devDependencies": {
-    "@babel/core": "^7.4.3",
-    "@babel/preset-env": "^7.4.3",
-    "@babel/register": "^7.4.0",
+    "@babel/core": "^7.4.4",
+    "@babel/preset-env": "^7.4.4",
+    "@babel/register": "^7.4.4",
     "esdoc": "^1.1.0",
     "esdoc-inject-style-plugin": "^1.0.0",
     "esdoc-integrate-test-plugin": "^1.0.0",
@@ -54,12 +54,12 @@
     "eslint-config-airbnb-base": "^13.1.0",
     "eslint-plugin-import": "^2.17.2",
     "mocha": "^6.1.4",
-    "nyc": "^13.3.0",
-    "rollup": "^1.10.1",
+    "nyc": "^14.1.0",
+    "rollup": "^1.11.3",
     "terser": "^3.17.0"
   },
   "dependencies": {
-    "rx-cancellable": "^0.3.0",
-    "rx-scheduler": "^0.2.4"
+    "rx-cancellable": "^0.3.2",
+    "rx-scheduler": "^0.2.7"
   }
 }

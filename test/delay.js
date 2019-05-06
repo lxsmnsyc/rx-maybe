@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 import assert from 'assert';
+import Scheduler from 'rx-scheduler';
 import Maybe from '../src/maybe';
 
 /**
@@ -90,7 +91,7 @@ describe('#delay', () => {
    *
    */
   it('should not signal error if cancelled.', (done) => {
-    const source = Maybe.error(new Error('Hello')).delay(100);
+    const source = Maybe.error(new Error('Hello')).delay(100, Scheduler.current, true);
     const controller = source.subscribe(
       () => done(false),
       () => done(false),
